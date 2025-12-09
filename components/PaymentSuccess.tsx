@@ -7,6 +7,7 @@ import { CheckCircleIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getCurrentUser, getUserData } from '../services/auth-api';
 import { getUserData as getUserDataAPI } from '../services/user-api';
+import { getCreditBalance } from '../services/credits';
 
 export const PaymentSuccess: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -74,26 +75,36 @@ export const PaymentSuccess: React.FC = () => {
           // Wait a moment for webhook to process
           await new Promise(resolve => setTimeout(resolve, 2000));
 
-          if (type === 'subscription') {
-            // Refresh user data to get updated subscription status
-            const { user: userData } = await getUserDataAPI(user.id);
-            if (userData?.subscription_status === 'pro') {
-              // Success - redirect to app
-              setTimeout(() => {
+        if (type === 'subscription') {
+          // Refresh credit balance to get updated plan and credits
+          const balance = await getCreditBalance();
+          if (balance.plan === 'PRO' && balance.credits >= 40) {
+            // Success - redirect to app
+            setTimeout(() => {
+              navigate('/');
+            }, 2000);
+          } else {
+            // Webhook might not have processed yet, wait a bit more
+            setTimeout(async () => {
+              const retryBalance = await getCreditBalance();
+              if (retryBalance.plan === 'PRO') {
                 navigate('/');
-              }, 2000);
-            } else {
-              // Webhook might not have processed yet, wait a bit more
-              setTimeout(async () => {
-                const { user: retryUserData } = await getUserDataAPI(user.id);
-                if (retryUserData?.subscription_status === 'pro') {
-                  navigate('/');
-                } else {
-                  setError('Payment processed but subscription not activated. Please contact support.');
-                }
-              }, 3000);
-            }
-          } else if (creationId) {
+              } else {
+                setError('Payment processed but subscription not activated. Please contact support.');
+              }
+            }, 3000);
+          }
+        } else if (type === 'one-off') {
+          // Refresh credit balance for one-off purchase
+          const balance = await getCreditBalance();
+          if (balance.credits > 0) {
+            setTimeout(() => {
+              navigate('/');
+            }, 2000);
+          } else {
+            setError('Payment processed but credits not added. Please contact support.');
+          }
+        } else if (creationId) {
             // For one-time purchases, payment is processed via webhook
             // The creation in the database is marked as purchased
             // We'll update the in-memory creation when user returns to the app
@@ -156,7 +167,9 @@ export const PaymentSuccess: React.FC = () => {
         <h2 className="text-2xl font-bold text-white mb-2">Payment Successful!</h2>
         <p className="text-zinc-400 mb-6">
           {type === 'subscription'
-            ? 'Your Pro subscription is now active. Redirecting...'
+            ? 'Your Pro subscription is now active with 40 credits. Redirecting...'
+            : type === 'one-off'
+            ? '1 credit has been added to your account. Redirecting...'
             : 'Your purchase is complete. Redirecting...'}
         </p>
         <div className="w-12 h-12 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto"></div>

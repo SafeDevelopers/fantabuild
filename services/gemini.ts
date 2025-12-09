@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-export type GenerationMode = 'web' | 'mobile' | 'social' | 'logo';
+export type GenerationMode = 'web' | 'mobile' | 'social' | 'logo' | 'video';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
@@ -23,6 +23,13 @@ export async function bringToLife(
 
   try {
     const token = localStorage.getItem('fanta_build_token');
+    if (!token) {
+      console.error('No token found in localStorage');
+      throw new Error('Authentication token not found. Please sign in again.');
+    }
+    
+    console.log('Making generation request with token:', token.substring(0, 20) + '...');
+    
     const response = await fetch(`${API_BASE_URL}/api/generate`, {
       method: 'POST',
       headers: {

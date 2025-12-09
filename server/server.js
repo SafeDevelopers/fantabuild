@@ -15,6 +15,7 @@ import * as auth from './auth.js';
 import * as creationsDb from './creations-db.js';
 import * as adminDb from './admin.js';
 import { PAYMENT_GATEWAYS, createPaymentSession, verifyPaymentCallback, getAvailableGateways } from './payment-gateways.js';
+import * as credits from './credits.js';
 
 // Load environment variables - ensure we load from the server directory
 import { fileURLToPath } from 'url';
@@ -103,6 +104,23 @@ const MODE_PROMPTS = {
       3. Abstract/Creative
     - Display them on a "Brand Sheet" with color palette swatches (hex codes) and typography pairing.
     - Make the logos hoverable or animated (CSS) to show polish.
+  `,
+  video: `
+    **MODE: AI VIDEO (Animated HTML/CSS)**
+    - **CRITICAL**: Create an animated video-like experience using HTML, CSS, and JavaScript.
+    - **ANIMATION IS KEY**: This is a "Video" built with HTML/CSS animations, not a static page.
+    - The output must be a container with proper aspect ratio (16:9 for landscape, 9:16 for vertical).
+    - Use CSS @keyframes extensively to create smooth, cinematic animations.
+    - Create dynamic scenes with:
+      * Text animations (fade in, slide, typewriter effects)
+      * Image/object animations (zoom, pan, rotate, pulse)
+      * Scene transitions (fade, slide, dissolve)
+      * Particle effects using CSS (if possible)
+    - Make it feel like a real video with continuous motion and transitions.
+    - Duration should feel like 15-30 seconds of content when looped.
+    - Use JavaScript to control timing and create complex animation sequences.
+    - If the input is an image, animate it creatively (zoom, pan, add effects).
+    - Make it visually stunning and engaging like a professional video.
   `
 };
 
@@ -142,23 +160,39 @@ const requireAuth = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '') || req.session?.token;
     if (!token) {
+      console.error('Auth middleware: No token provided');
       return res.status(401).json({ error: 'Authentication required' });
     }
+    
     const decoded = auth.verifyToken(token);
     if (!decoded) {
+      console.error('Auth middleware: Token verification failed', {
+        tokenLength: token.length,
+        tokenStart: token.substring(0, 20),
+      });
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
     
     // Get full user data including role
     const user = await auth.getUserById(decoded.userId);
     if (!user) {
+      console.error('Auth middleware: User not found', { userId: decoded.userId });
       return res.status(401).json({ error: 'User not found' });
     }
     
     req.user = { ...decoded, role: user.role };
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Authentication failed' });
+    console.error('Auth middleware error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    res.status(401).json({ 
+      error: 'Authentication failed',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
@@ -231,7 +265,18 @@ app.post('/api/auth/signup', async (req, res) => {
     });
   } catch (error) {
     console.error('Signup error:', error);
-    res.status(500).json({ error: 'Failed to create account' });
+    // Return more specific error message
+    const errorMessage = error.message || 'Failed to create account';
+    const isDatabaseError = error.code === '42703' || error.code === '42P01' || error.message?.includes('column') || error.message?.includes('relation');
+    
+    if (isDatabaseError) {
+      return res.status(500).json({ 
+        error: 'Database schema error. Please run the credits migration: database/credits-schema.sql',
+        details: errorMessage 
+      });
+    }
+    
+    res.status(500).json({ error: errorMessage || 'Failed to create account' });
   }
 });
 
@@ -304,8 +349,12 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
       subscription_status: user.subscription_status,
       role: user.role || 'user',
       daily_usage_count: user.daily_usage_count,
+      // Include plan and credits if they exist (from credits schema)
+      plan: user.plan || 'FREE',
+      credits: user.credits !== undefined ? user.credits : null,
     });
   } catch (error) {
+    console.error('Error in /api/auth/me:', error);
     res.status(500).json({ error: 'Failed to get user' });
   }
 });
@@ -673,7 +722,177 @@ app.post('/api/create-checkout-session', requireAuth, async (req, res) => {
 });
 
 /**
- * Create Stripe Checkout Session for Pro Subscription
+ * Get user credit balance
+ */
+app.get('/api/credits/balance', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const balance = await credits.getCreditBalance(userId);
+    
+    // Get user plan info
+    const user = await auth.getUserById(userId);
+    
+    res.json({
+      credits: balance,
+      plan: user.plan || 'FREE',
+      proUntil: user.pro_until || null,
+    });
+  } catch (error) {
+    console.error('Error getting credit balance:', error);
+    res.status(500).json({ error: error.message || 'Failed to get credit balance' });
+  }
+});
+
+/**
+ * Get credit transaction history
+ */
+app.get('/api/credits/history', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const limit = parseInt(req.query.limit) || 50;
+    const history = await credits.getCreditHistory(userId, limit);
+    res.json({ transactions: history });
+  } catch (error) {
+    console.error('Error getting credit history:', error);
+    res.status(500).json({ error: error.message || 'Failed to get credit history' });
+  }
+});
+
+/**
+ * Create Stripe Checkout Session for One-Off Credit Purchase ($3.99)
+ */
+app.post('/api/billing/checkout/one-off', requireAuth, async (req, res) => {
+  try {
+    if (!stripe) {
+      return res.status(500).json({ error: 'Stripe not configured. Please set STRIPE_SECRET_KEY in .env' });
+    }
+
+    const userId = req.user.userId;
+    const user = await auth.getUserById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Create payment record
+    const paymentResult = await pool.query(
+      `INSERT INTO payments (user_id, type, amount, provider, status)
+       VALUES ($1, 'ONE_OFF', 3.99, 'stripe', 'pending')
+       RETURNING id`,
+      [userId]
+    );
+    const paymentId = paymentResult.rows[0].id;
+
+    // Create Stripe Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'Fanta Build - 1 Credit',
+              description: '1 credit for downloading AI-generated content',
+            },
+            unit_amount: 399, // $3.99 in cents
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success?type=one-off&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-cancel`,
+      customer_email: user.email,
+      metadata: {
+        userId,
+        paymentId,
+        type: 'one-off',
+      },
+    });
+
+    // Update payment with session ID
+    await pool.query(
+      `UPDATE payments SET provider_session_id = $1 WHERE id = $2`,
+      [session.id, paymentId]
+    );
+
+    res.json({ sessionId: session.id, url: session.url });
+  } catch (error) {
+    console.error('Error creating one-off checkout session:', error);
+    res.status(500).json({ error: error.message || 'Failed to create checkout session' });
+  }
+});
+
+/**
+ * Create Stripe Checkout Session for Pro Subscription ($29.99/month)
+ */
+app.post('/api/billing/checkout/subscription', requireAuth, async (req, res) => {
+  try {
+    if (!stripe) {
+      return res.status(500).json({ error: 'Stripe not configured. Please set STRIPE_SECRET_KEY in .env' });
+    }
+
+    const userId = req.user.userId;
+    const user = await auth.getUserById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Create payment record
+    const paymentResult = await pool.query(
+      `INSERT INTO payments (user_id, type, amount, provider, status)
+       VALUES ($1, 'SUBSCRIPTION', 29.99, 'stripe', 'pending')
+       RETURNING id`,
+      [userId]
+    );
+    const paymentId = paymentResult.rows[0].id;
+
+    // Create Stripe Checkout Session for subscription
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'Fanta Build Pro',
+              description: 'Pro subscription - 40 credits/month, faster generation, no watermark',
+            },
+            unit_amount: 2999, // $29.99 in cents
+            recurring: {
+              interval: 'month',
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'subscription',
+      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success?type=subscription&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-cancel`,
+      customer_email: user.email,
+      metadata: {
+        userId,
+        paymentId,
+        type: 'subscription',
+      },
+    });
+
+    // Update payment with session ID
+    await pool.query(
+      `UPDATE payments SET provider_session_id = $1 WHERE id = $2`,
+      [session.id, paymentId]
+    );
+
+    res.json({ sessionId: session.id, url: session.url });
+  } catch (error) {
+    console.error('Error creating subscription checkout session:', error);
+    res.status(500).json({ error: error.message || 'Failed to create subscription session' });
+  }
+});
+
+/**
+ * Create Stripe Checkout Session for Pro Subscription (Legacy endpoint - keep for compatibility)
  */
 app.post('/api/create-subscription-session', requireAuth, async (req, res) => {
   try {
@@ -703,7 +922,7 @@ app.post('/api/create-subscription-session', requireAuth, async (req, res) => {
             recurring: {
               interval: 'month',
             },
-            unit_amount: 2500, // $25.00 in cents
+            unit_amount: 2999, // $29.99 in cents
           },
           quantity: 1,
         },
@@ -723,6 +942,79 @@ app.post('/api/create-subscription-session', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error creating subscription session:', error);
     res.status(500).json({ error: error.message || 'Failed to create subscription session' });
+  }
+});
+
+/**
+ * Download creation (consumes 1 credit)
+ */
+app.post('/api/download', requireAuth, async (req, res) => {
+  try {
+    const { creationId } = req.body;
+    const userId = req.user.userId;
+
+    if (!creationId) {
+      return res.status(400).json({ error: 'Missing creationId' });
+    }
+
+    // Check credit balance
+    const balance = await credits.getCreditBalance(userId);
+    
+    if (balance <= 0) {
+      return res.status(402).json({
+        error: 'INSUFFICIENT_CREDITS',
+        message: 'You have no credits left. Please purchase credits to download.',
+        credits: balance,
+      });
+    }
+
+    // Consume credit first (before checking creation in DB)
+    // This ensures credit is consumed even for in-memory creations
+    const newBalance = await credits.consumeCredit(userId, 'DOWNLOAD');
+
+    // Try to get creation from database (might not exist for in-memory creations)
+    const result = await pool.query(
+      `SELECT id, name, html, user_id FROM creations WHERE id = $1 AND user_id = $2`,
+      [creationId, userId]
+    );
+
+    if (result.rows.length > 0) {
+      const creation = result.rows[0];
+      
+      // Mark as purchased if not already
+      await pool.query(
+        `UPDATE creations SET purchased = true WHERE id = $1`,
+        [creationId]
+      );
+
+      res.json({
+        success: true,
+        creation: {
+          id: creation.id,
+          name: creation.name,
+          html: creation.html,
+        },
+        creditsRemaining: newBalance,
+      });
+    } else {
+      // Creation is in-memory only (session-based)
+      // Credit already consumed, frontend will handle download
+      res.json({ 
+        success: true, 
+        creditsRemaining: newBalance,
+        message: 'Credit consumed. Download will proceed.',
+      });
+    }
+  } catch (error) {
+    if (error.code === 'INSUFFICIENT_CREDITS') {
+      return res.status(402).json({
+        error: 'INSUFFICIENT_CREDITS',
+        message: error.message || 'You have no credits left.',
+        credits: 0,
+      });
+    }
+    console.error('Download error:', error);
+    res.status(500).json({ error: error.message || 'Failed to process download' });
   }
 });
 
@@ -1060,32 +1352,78 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
     switch (event.type) {
       case 'checkout.session.completed':
         const session = event.data.object;
-        const { userId, creationId, type } = session.metadata || {};
+        const { userId, creationId, type, paymentId } = session.metadata || {};
 
         if (type === 'subscription') {
-          // Update user to Pro
+          // Update user to Pro and add 40 credits
           if (userId) {
-            await auth.updateUserSubscription(userId, 'pro');
-
-            // Mark all creations as purchased
-            await pool.query(
-              `UPDATE creations SET purchased = true WHERE user_id = $1`,
-              [userId]
-            );
+            await credits.updateUserPlan(userId, 'PRO');
+            await credits.addCredits(userId, 40, 'SUBSCRIPTION_MONTHLY');
+            
+            // Update payment status
+            if (paymentId) {
+              await pool.query(
+                `UPDATE payments SET status = 'completed' WHERE id = $1`,
+                [paymentId]
+              );
+            }
+          }
+        } else if (type === 'one-off') {
+          // Add 1 credit for one-off purchase
+          if (userId) {
+            await credits.addCredits(userId, 1, 'ONE_OFF_PURCHASE');
+            
+            // Update user plan to PAY_PER_USE if they're on FREE
+            const user = await auth.getUserById(userId);
+            if (user && (!user.plan || user.plan === 'FREE')) {
+              await credits.updateUserPlan(userId, 'PAY_PER_USE');
+            }
+            
+            // Update payment status
+            if (paymentId) {
+              await pool.query(
+                `UPDATE payments SET status = 'completed' WHERE id = $1`,
+                [paymentId]
+              );
+            }
           }
         } else if (type === 'onetime' && creationId) {
-          // Mark specific creation as purchased
-          await creationsDb.markCreationAsPurchased(creationId);
+          // Legacy: For backward compatibility, consume credit and mark as purchased
+          if (userId) {
+            try {
+              await credits.consumeCredit(userId, 'DOWNLOAD');
+              await creationsDb.markCreationAsPurchased(creationId);
+            } catch (error) {
+              // If credit consumption fails, just mark as purchased (legacy behavior)
+              await creationsDb.markCreationAsPurchased(creationId);
+            }
+          }
+        }
+        break;
+
+      case 'customer.subscription.updated':
+      case 'invoice.payment_succeeded':
+        // Handle subscription renewal - add 40 credits monthly
+        const subscription = event.data.object;
+        const subUserId = subscription.metadata?.userId;
+        
+        if (subUserId && event.type === 'invoice.payment_succeeded') {
+          // Check if this is a renewal (not initial payment)
+          const invoice = event.data.object;
+          if (invoice.billing_reason === 'subscription_cycle') {
+            await credits.addCredits(subUserId, 40, 'SUBSCRIPTION_MONTHLY');
+          }
         }
         break;
 
       case 'customer.subscription.deleted':
-        // Handle subscription cancellation
-        const subscription = event.data.object;
-        const customerId = subscription.customer;
+        // Handle subscription cancellation - downgrade to FREE
+        const cancelledSub = event.data.object;
+        const cancelledUserId = cancelledSub.metadata?.userId;
         
-        // Find user by Stripe customer ID (you may need to store this)
-        // For now, we'll handle this via metadata or customer lookup
+        if (cancelledUserId) {
+          await credits.updateUserPlan(cancelledUserId, 'FREE');
+        }
         break;
 
       default:

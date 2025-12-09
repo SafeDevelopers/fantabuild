@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import React, { useCallback, useState, useEffect, useRef } from 'react';
-import { ArrowUpTrayIcon, SparklesIcon, CpuChipIcon, PaperClipIcon, XMarkIcon, DocumentIcon, LockClosedIcon, DevicePhoneMobileIcon, ComputerDesktopIcon, VideoCameraIcon, PaintBrushIcon } from '@heroicons/react/24/outline';
+import { ArrowUpTrayIcon, SparklesIcon, CpuChipIcon, PaperClipIcon, XMarkIcon, DocumentIcon, LockClosedIcon, DevicePhoneMobileIcon, ComputerDesktopIcon, VideoCameraIcon, PaintBrushIcon, FilmIcon } from '@heroicons/react/24/outline';
 import { GenerationMode } from '../services/gemini';
 
 interface InputAreaProps {
@@ -117,6 +117,7 @@ export const InputArea: React.FC<InputAreaProps> = ({ onGenerate, isGenerating, 
       { id: 'mobile', label: 'Mobile UI', icon: DevicePhoneMobileIcon },
       { id: 'social', label: 'TikTok/Reels', icon: VideoCameraIcon },
       { id: 'logo', label: 'Logo & Brand', icon: PaintBrushIcon },
+      { id: 'video', label: 'AI Video', icon: FilmIcon },
   ];
 
   return (

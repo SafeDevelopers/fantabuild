@@ -32,8 +32,17 @@ export async function signUp(email: string, password: string): Promise<{ user: A
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      return { user: null, error: error.error || 'Sign up failed' };
+      const errorData = await response.json();
+      // Return more detailed error information
+      const errorMessage = errorData.error || 'Sign up failed';
+      const errorDetails = errorData.details || '';
+      return { 
+        user: null, 
+        error: {
+          message: errorMessage,
+          details: errorDetails,
+        }
+      };
     }
 
     const data: AuthResponse = await response.json();
@@ -41,7 +50,7 @@ export async function signUp(email: string, password: string): Promise<{ user: A
     localStorage.setItem('fanta_build_token', data.token);
     return { user: data.user, error: null };
   } catch (error: any) {
-    return { user: null, error: error.message || 'Sign up failed' };
+    return { user: null, error: { message: error.message || 'Sign up failed' } };
   }
 }
 
@@ -50,6 +59,7 @@ export async function signUp(email: string, password: string): Promise<{ user: A
  */
 export async function signIn(email: string, password: string): Promise<{ user: AuthUser | null; error: any }> {
   try {
+    console.log('Signing in user:', email);
     const response = await fetch(`${API_BASE_URL}/api/auth/signin`, {
       method: 'POST',
       headers: {
@@ -60,16 +70,26 @@ export async function signIn(email: string, password: string): Promise<{ user: A
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      return { user: null, error: error.error || 'Sign in failed' };
+      const errorData = await response.json();
+      console.error('Sign in failed:', errorData);
+      // Return more detailed error information
+      const errorMessage = errorData.error || 'Sign in failed';
+      return { 
+        user: null, 
+        error: {
+          message: errorMessage,
+        }
+      };
     }
 
     const data: AuthResponse = await response.json();
+    console.log('Sign in successful, user data:', data.user);
     // Store token
     localStorage.setItem('fanta_build_token', data.token);
     return { user: data.user, error: null };
   } catch (error: any) {
-    return { user: null, error: error.message || 'Sign in failed' };
+    console.error('Sign in error:', error);
+    return { user: null, error: { message: error.message || 'Sign in failed' } };
   }
 }
 

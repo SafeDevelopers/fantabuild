@@ -51,7 +51,7 @@ Choose one option:
 - `JWT_EXPIRES_IN` - Token expiration (default: 7d)
 
 #### API Keys
-- `GEMINI_API_KEY` - Google Gemini API key
+- `GEMINI_API_KEY` - Google Gemini API key (required for all AI generation)
 - `STRIPE_SECRET_KEY` - Stripe secret key (sk_test_... or sk_live_...)
 - `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret (whsec_...)
 

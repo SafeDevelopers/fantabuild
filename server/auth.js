@@ -54,13 +54,64 @@ export function verifyToken(token) {
  */
 export async function createUser(email, password, role = 'user') {
   const passwordHash = await hashPassword(password);
-  const result = await pool.query(
-    `INSERT INTO users (email, password_hash, role) 
-     VALUES ($1, $2, $3) 
-     RETURNING id, email, subscription_status, role, daily_usage_count, last_reset_date, created_at`,
-    [email, passwordHash, role]
-  );
-  return result.rows[0];
+  
+  // Check if plan and credits columns exist
+  let hasCreditsSchema = false;
+  try {
+    const checkResult = await pool.query(
+      `SELECT column_name FROM information_schema.columns 
+       WHERE table_name = 'users' AND column_name IN ('plan', 'credits')`
+    );
+    hasCreditsSchema = checkResult.rows.length === 2;
+  } catch (error) {
+    console.warn('Could not check for credits schema:', error.message);
+  }
+  
+  let result;
+  if (hasCreditsSchema) {
+    // Use new schema with plan and credits
+    result = await pool.query(
+      `INSERT INTO users (email, password_hash, role, plan, credits) 
+       VALUES ($1, $2, $3, 'FREE', 3) 
+       RETURNING id, email, subscription_status, role, plan, credits, daily_usage_count, last_reset_date, created_at`,
+      [email, passwordHash, role]
+    );
+  } else {
+    // Fall back to old schema without plan/credits
+    result = await pool.query(
+      `INSERT INTO users (email, password_hash, role) 
+       VALUES ($1, $2, $3) 
+       RETURNING id, email, subscription_status, role, daily_usage_count, last_reset_date, created_at`,
+      [email, passwordHash, role]
+    );
+  }
+  
+  const user = result.rows[0];
+  
+  // Create initial credit transaction if credit_transactions table exists
+  if (hasCreditsSchema) {
+    try {
+      const tableCheck = await pool.query(
+        `SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'credit_transactions'
+        )`
+      );
+      
+      if (tableCheck.rows[0].exists) {
+        await pool.query(
+          `INSERT INTO credit_transactions (user_id, change, reason)
+           VALUES ($1, 3, 'INITIAL_FREE')`,
+          [user.id]
+        );
+      }
+    } catch (error) {
+      console.warn('Could not create credit transaction:', error.message);
+      // Don't fail user creation if credit transaction fails
+    }
+  }
+  
+  return user;
 }
 
 /**
@@ -126,12 +177,37 @@ export async function ensurePermanentAdmin() {
  * Get user by ID
  */
 export async function getUserById(userId) {
-  const result = await pool.query(
-    `SELECT id, email, subscription_status, role, daily_usage_count, last_reset_date, created_at
-     FROM users 
-     WHERE id = $1`,
-    [userId]
-  );
+  // Check if credits schema columns exist
+  let hasCreditsSchema = false;
+  try {
+    const checkResult = await pool.query(
+      `SELECT column_name FROM information_schema.columns 
+       WHERE table_name = 'users' AND column_name IN ('plan', 'credits')`
+    );
+    hasCreditsSchema = checkResult.rows.length === 2;
+  } catch (error) {
+    console.warn('Could not check for credits schema:', error.message);
+  }
+
+  let result;
+  if (hasCreditsSchema) {
+    // Use new schema with plan and credits
+    result = await pool.query(
+      `SELECT id, email, subscription_status, role, plan, credits, pro_since, pro_until, daily_usage_count, last_reset_date, created_at
+       FROM users 
+       WHERE id = $1`,
+      [userId]
+    );
+  } else {
+    // Fall back to old schema without plan/credits
+    result = await pool.query(
+      `SELECT id, email, subscription_status, role, daily_usage_count, last_reset_date, created_at
+       FROM users 
+       WHERE id = $1`,
+      [userId]
+    );
+  }
+  
   return result.rows[0] || null;
 }
 

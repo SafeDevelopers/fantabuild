@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS creations (
   name TEXT NOT NULL,
   html TEXT NOT NULL,
   original_image TEXT,
-  mode TEXT NOT NULL DEFAULT 'web' CHECK (mode IN ('web', 'mobile', 'social', 'logo')),
+  mode TEXT NOT NULL DEFAULT 'web' CHECK (mode IN ('web', 'mobile', 'social', 'logo', 'video')),
   purchased BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

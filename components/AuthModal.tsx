@@ -4,12 +4,12 @@
 */
 import React, { useState } from 'react';
 import { XMarkIcon, EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
-import { signIn, signUp } from '../services/auth-api';
+import { signIn, signUp, type AuthUser } from '../services/auth-api';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (user?: AuthUser) => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => {
@@ -32,17 +32,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         : await signIn(email, password);
 
       if (result.error) {
-        setError(result.error.message || 'Authentication failed');
-      } else {
+        // Handle error object with message and details
+        const errorMsg = typeof result.error === 'string' 
+          ? result.error 
+          : result.error.message || 'Authentication failed';
+        const errorDetails = result.error.details || '';
+        setError(errorDetails ? `${errorMsg}: ${errorDetails}` : errorMsg);
+        setLoading(false);
+        return;
+      } else if (result.user) {
+        console.log('Auth successful, user:', result.user);
         // Reset form first
         setEmail('');
         setPassword('');
-        // Call onSuccess to refresh user state, then close modal
-        onSuccess();
+        // Call onSuccess with user data to update state immediately
+        onSuccess(result.user);
         // Small delay to ensure state updates before closing modal
         setTimeout(() => {
           onClose();
-        }, 100);
+        }, 200);
+      } else {
+        console.error('Authentication failed - no user data received');
+        setError('Authentication failed - no user data received');
+        setLoading(false);
       }
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred');

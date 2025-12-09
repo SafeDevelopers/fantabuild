@@ -36,14 +36,34 @@ export async function createCheckoutSession(
 }
 
 /**
- * Create a Stripe checkout session for Pro subscription
+ * Create a Stripe checkout session for one-off credit purchase ($3.99)
  */
-export async function createSubscriptionSession(
-  userId: string,
-  userEmail?: string
-): Promise<{ sessionId: string; url: string }> {
+export async function createOneOffCheckout(): Promise<{ sessionId: string; url: string }> {
   const token = getAuthToken();
-  const response = await fetch(`${API_BASE_URL}/api/create-subscription-session`, {
+  const response = await fetch(`${API_BASE_URL}/api/billing/checkout/one-off`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    credentials: 'include',
+    body: JSON.stringify({}),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to create checkout session');
+  }
+
+  return response.json();
+}
+
+/**
+ * Create a Stripe checkout session for Pro subscription ($29.99/month)
+ */
+export async function createSubscriptionCheckout(): Promise<{ sessionId: string; url: string }> {
+  const token = getAuthToken();
+  const response = await fetch(`${API_BASE_URL}/api/billing/checkout/subscription`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -59,6 +79,16 @@ export async function createSubscriptionSession(
   }
 
   return response.json();
+}
+
+/**
+ * Create a Stripe checkout session for Pro subscription (Legacy endpoint - for backward compatibility)
+ */
+export async function createSubscriptionSession(
+  userId: string,
+  userEmail?: string
+): Promise<{ sessionId: string; url: string }> {
+  return createSubscriptionCheckout();
 }
 
 /**

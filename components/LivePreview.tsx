@@ -16,6 +16,8 @@ import {
   DocumentIcon,
 } from '@heroicons/react/24/outline';
 import { Creation } from './CreationHistory';
+import { requestDownload } from '../services/credits';
+import { InsufficientCreditsModal } from './InsufficientCreditsModal';
 
 interface LivePreviewProps {
   creation: Creation | null;
@@ -23,6 +25,7 @@ interface LivePreviewProps {
   isFocused: boolean;
   onReset: () => void;
   onPurchase?: (id: string, plan: 'onetime' | 'subscription') => void;
+  onMarkPurchased?: (id: string) => void;
 }
 
 // Add type definition for the global pdfjsLib and html2canvas
@@ -246,7 +249,7 @@ const PurchaseModal = ({
                     Pro Subscription
                   </h4>
                   <p className="text-xs text-zinc-500">
-                    20 Daily Fast Generations + All Exports
+                    40 credits/month + Faster generation
                   </p>
                 </div>
               </div>
@@ -257,7 +260,7 @@ const PurchaseModal = ({
                     : 'text-zinc-400'
                 } font-mono font-bold text-sm`}
               >
-                $25
+                $29.99
                 <span className="text-xs font-normal text-zinc-500">/mo</span>
               </span>
             </div>
@@ -294,10 +297,10 @@ const PurchaseModal = ({
                         : 'text-zinc-300'
                     }`}
                   >
-                    One-Time Export
+                    Buy 1 Credit
                   </h4>
                   <p className="text-xs text-zinc-500">
-                    HTML source code for this item
+                    1 credit = 1 download
                   </p>
                 </div>
               </div>
@@ -324,15 +327,15 @@ const PurchaseModal = ({
                 <LockClosedIcon className="w-4 h-4" />
               )}
               <span>
-                {selectedPlan === 'subscription'
-                  ? 'Subscribe & Unlock'
-                  : `Pay ${oneTimePrice} & Download`}
+                  {selectedPlan === 'subscription'
+                    ? 'Go Pro - $29.99/month'
+                    : `Buy Credit - ${oneTimePrice}`}
               </span>
             </button>
             <p className="text-center text-[10px] text-zinc-600">
               {selectedPlan === 'subscription'
-                ? 'Fair Use Policy: 20 generations/day. Cancel anytime.'
-                : 'Single file license. Non-refundable.'}
+                ? '40 credits/month. Faster generation. Cancel anytime.'
+                : '1 credit = 1 download. Non-refundable.'}
             </p>
           </div>
         </div>
@@ -347,10 +350,13 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
   isFocused,
   onReset,
   onPurchase,
+  onMarkPurchased,
 }) => {
   const [loadingStep, setLoadingStep] = useState(0);
   const [showSplitView, setShowSplitView] = useState(false);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [showInsufficientCredits, setShowInsufficientCredits] = useState(false);
+  const [currentCredits, setCurrentCredits] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingPng, setIsExportingPng] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -378,7 +384,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
   }, [creation]);
 
   const handleDownloadHtml = () => {
-    if (!creation) return;
+    if (!creation || !creation.html) return;
     const blob = new Blob([creation.html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -433,30 +439,57 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
     }
   };
 
-  const handleExportClick = () => {
+  const handleExportClick = async () => {
     if (!creation) return;
 
-    // Pro users or free trial users can download immediately
+    // If already purchased, download immediately
     if (creation.purchased) {
       handleDownloadHtml();
-    } else {
-      // Show purchase modal for non-Pro users after free trial
-      setShowPurchaseModal(true);
+      return;
+    }
+
+    // Try to consume credit for download
+    try {
+      setIsExporting(true);
+      const result = await requestDownload(creation.id);
+      
+      // Credit consumed successfully, mark as purchased in parent component
+      if (onMarkPurchased) {
+        onMarkPurchased(creation.id);
+      }
+      
+      // Trigger download
+      setTimeout(() => {
+        handleDownloadHtml();
+        setIsExporting(false);
+      }, 100);
+    } catch (error: any) {
+      setIsExporting(false);
+      if (error.code === 'INSUFFICIENT_CREDITS') {
+        // Show insufficient credits modal
+        setCurrentCredits(error.credits || 0);
+        setShowInsufficientCredits(true);
+      } else {
+        console.error('Download error:', error);
+        alert(error.message || 'Failed to process download. Please try again.');
+      }
     }
   };
 
-  const handleConfirmPurchase = (plan: 'onetime' | 'subscription') => {
+  const handleConfirmPurchase = async (plan: 'onetime' | 'subscription') => {
     setIsExporting(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
       if (creation && onPurchase) {
-        onPurchase(creation.id, plan);
+        await onPurchase(creation.id, plan);
       }
       setIsExporting(false);
       setShowPurchaseModal(false);
-      // Auto download after purchase
-      setTimeout(() => handleDownloadHtml(), 500);
-    }, 1500);
+      // Note: Download will happen after payment success redirect
+    } catch (error: any) {
+      console.error('Purchase error:', error);
+      setIsExporting(false);
+      alert(error.message || 'Failed to process purchase. Please try again.');
+    }
   };
 
   // 🔒 IMPORTANT: avoid showing the preview overlay when nothing is happening
@@ -465,6 +498,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
   }
 
   // Decide if we have HTML to show (allow empty string as valid)
+  // Video mode also uses HTML (animated HTML/CSS), so we check html for all modes
   const hasHtml =
     !!creation && creation.html !== undefined && creation.html !== null;
 
@@ -487,6 +521,13 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
         onClose={() => setShowPurchaseModal(false)}
         onConfirm={handleConfirmPurchase}
         oneTimePrice="$3.99"
+      />
+
+      {/* Insufficient Credits Modal */}
+      <InsufficientCreditsModal
+        isOpen={showInsufficientCredits}
+        onClose={() => setShowInsufficientCredits(false)}
+        currentCredits={currentCredits}
       />
 
       {/* Minimal Technical Header */}

@@ -8,10 +8,11 @@ import { ClockIcon, ArrowRightIcon, DocumentIcon, PhotoIcon, LockClosedIcon, Che
 export interface Creation {
   id: string;
   name: string;
-  html: string;
+  html: string; // HTML content (all modes use HTML, including video which is animated HTML/CSS)
   originalImage?: string; // Base64 data URL
   timestamp: Date;
   purchased?: boolean; // Track if the user paid for this
+  mode?: 'web' | 'mobile' | 'social' | 'logo' | 'video'; // Generation mode
 }
 
 interface CreationHistoryProps {

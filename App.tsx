@@ -14,7 +14,8 @@ import { getCurrentUser, onAuthStateChange, signOut as apiSignOut, AuthUser } fr
 import { getUserData, updateUserSubscription } from './services/user-api';
 // Save creation only temporarily for payment processing (not for history)
 import { saveCreation } from './services/creations-api';
-import { createCheckoutSession, createSubscriptionSession } from './services/payments';
+import { createCheckoutSession, createSubscriptionSession, createOneOffCheckout, createSubscriptionCheckout } from './services/payments';
+import { getCreditBalance, CreditBalance } from './services/credits';
 import { ArrowUpTrayIcon, QuestionMarkCircleIcon, UserIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 
 const FREE_DAILY_LIMIT = 3;
@@ -25,7 +26,6 @@ const App: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [history, setHistory] = useState<Creation[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [isPro, setIsPro] = useState(false);
 
   // Auth State
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -35,6 +35,11 @@ const App: React.FC = () => {
   // Usage Tracking
   const [dailyUsage, setDailyUsage] = useState(0);
   const [limitReached, setLimitReached] = useState(false);
+  const [isPro, setIsPro] = useState(false);
+  
+  // Credit System
+  const [creditBalance, setCreditBalance] = useState<CreditBalance | null>(null);
+  const [showInsufficientCreditsModal, setShowInsufficientCreditsModal] = useState(false);
 
   const importInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,6 +84,18 @@ const App: React.FC = () => {
       if (userData) {
         setIsPro(userData.subscription_status === 'pro');
         setDailyUsage(userData.daily_usage_count);
+      }
+
+      // Load credit balance
+      try {
+        const balance = await getCreditBalance();
+        setCreditBalance(balance);
+        // Update isPro based on plan
+        if (balance.plan === 'PRO') {
+          setIsPro(true);
+        }
+      } catch (error) {
+        console.error('Error loading credit balance:', error);
       }
 
       // No database storage - only show examples for new users
@@ -145,6 +162,7 @@ const App: React.FC = () => {
             setHistory([]);
             setIsPro(false);
             setDailyUsage(0);
+            setCreditBalance(null);
             await loadExamples();
           }
         } catch (error) {
@@ -171,6 +189,31 @@ const App: React.FC = () => {
     setLimitReached(dailyUsage >= limit);
   }, [dailyUsage, isPro]);
 
+  // Refresh credit balance after payment success
+  useEffect(() => {
+    const refreshCredits = async () => {
+      if (user) {
+        try {
+          const balance = await getCreditBalance();
+          setCreditBalance(balance);
+          if (balance.plan === 'PRO') {
+            setIsPro(true);
+          }
+        } catch (error) {
+          console.error('Error refreshing credits:', error);
+        }
+      }
+    };
+
+    // Refresh credits when user changes or after a delay (for payment webhooks)
+    if (user) {
+      refreshCredits();
+      // Also refresh after 3 seconds in case webhook is still processing
+      const timeout = setTimeout(refreshCredits, 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [user]);
+
   // Handle payment success - mark creation as purchased and auto-download
   useEffect(() => {
     const purchasedCreationId = sessionStorage.getItem('purchased_creation_id');
@@ -187,24 +230,26 @@ const App: React.FC = () => {
         
         // Auto-download after successful payment
         setTimeout(() => {
-          const blob = new Blob([activeCreation.html], { type: 'text/html' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${activeCreation.name
-            .replace(/[^a-z0-9]/gi, '_')
-            .toLowerCase()}.html`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
+          if (activeCreation.html) {
+            const blob = new Blob([activeCreation.html], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${activeCreation.name
+              .replace(/[^a-z0-9]/gi, '_')
+              .toLowerCase()}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }
         }, 500);
       } else {
         // Check history for the purchased creation
         const purchasedCreation = history.find(c => c.id === purchasedCreationId);
-        if (purchasedCreation) {
+        if (purchasedCreation && purchasedCreation.html) {
           setTimeout(() => {
-            const blob = new Blob([purchasedCreation.html], { type: 'text/html' });
+            const blob = new Blob([purchasedCreation.html!], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -248,6 +293,15 @@ const App: React.FC = () => {
       return;
     }
 
+    // Verify token exists
+    const token = localStorage.getItem('fanta_build_token');
+    if (!token) {
+      console.error('No token found, user needs to sign in again');
+      setUser(null);
+      setShowAuthModal(true);
+      return;
+    }
+
     // Note: Users can always generate - no limit on generation
     // Payment is only required for downloads after free trials
 
@@ -255,6 +309,7 @@ const App: React.FC = () => {
     setActiveCreation(null);
 
     try {
+      // All modes (including video) use Gemini API
       let imageBase64: string | undefined;
       let mimeType: string | undefined;
 
@@ -263,13 +318,15 @@ const App: React.FC = () => {
         mimeType = file.type.toLowerCase();
       }
 
+      // Generate using Gemini API (works for all modes including video)
       const html = await bringToLife(promptText, imageBase64, mimeType, mode, user.id);
 
       // Create creation object in memory only (no database storage)
-      // Check if user gets free download: Pro users OR first 3 generations (free trial)
-      const isFreeDownload = isPro || dailyUsage < 3;
+      // Check if user gets free download: Pro users OR if they have credits
+      // For now, all downloads require credits (no free downloads except initial 3 credits)
+      const isFreeDownload = false; // All downloads now require credits
       
-      const newCreation: Creation & { mode?: GenerationMode } = {
+      const newCreation: Creation = {
         id: crypto.randomUUID(),
         name: file
           ? file.name
@@ -360,6 +417,14 @@ const App: React.FC = () => {
     }
   };
 
+  const handleMarkPurchased = (id: string) => {
+    // Mark creation as purchased in state
+    setHistory((prev) => prev.map(c => c.id === id ? { ...c, purchased: true } : c));
+    if (activeCreation?.id === id) {
+      setActiveCreation({ ...activeCreation, purchased: true });
+    }
+  };
+
   const handleUpgradeToPro = async () => {
     if (!user) {
       setShowAuthModal(true);
@@ -389,46 +454,17 @@ const App: React.FC = () => {
 
     try {
       if (plan === 'subscription') {
-        // Create Stripe checkout session for subscription
-        const { url } = await createSubscriptionSession(user.id, user.email || undefined);
+        // Create Stripe checkout session for Pro subscription ($29.99/month)
+        const { url } = await createSubscriptionCheckout();
         if (url) {
           // Redirect to Stripe checkout
           window.location.href = url;
         } else {
           throw new Error('Failed to get checkout URL');
         }
-      } else {
-        // For one-time purchase, find the creation in memory and save it temporarily for payment
-        const creation = history.find(c => c.id === id) || activeCreation;
-        if (!creation) {
-          throw new Error('Creation not found');
-        }
-
-        // Save creation temporarily to database for payment processing
-        // Use the mode stored in creation metadata or default to 'web'
-        const mode: GenerationMode = (creation as Creation & { mode?: GenerationMode }).mode || 'web';
-        const { creation: savedCreation, error: saveError } = await saveCreation(
-          user.id,
-          {
-            name: creation.name,
-            html: creation.html,
-            originalImage: creation.originalImage,
-            purchased: false,
-          },
-          mode
-        );
-
-        if (saveError || !savedCreation) {
-          throw new Error(saveError?.message || 'Failed to save creation for payment');
-        }
-
-        // Update the creation in memory with the saved ID
-        const updatedCreation = { ...creation, id: savedCreation.id };
-        setActiveCreation(updatedCreation);
-        setHistory((prev) => prev.map(c => c.id === id ? updatedCreation : c));
-
-        // Create Stripe checkout session for one-time purchase
-        const { url } = await createCheckoutSession(user.id, savedCreation.id, user.email || undefined);
+      } else if (plan === 'onetime') {
+        // Create Stripe checkout session for one-off credit purchase ($3.99)
+        const { url } = await createOneOffCheckout();
         if (url) {
           // Redirect to Stripe checkout
           window.location.href = url;
@@ -478,27 +514,43 @@ const App: React.FC = () => {
     localStorage.setItem('fanta_build_onboarding_completed', 'true');
   };
 
-  const handleAuthSuccess = async () => {
-    // Refresh user state after successful login
+  const handleAuthSuccess = async (userData?: AuthUser) => {
+    // Update user state after successful login/signup
     try {
-      const { user: currentUser, error } = await getCurrentUser();
-      if (error) {
-        console.error('Error getting current user:', error);
-        return;
+      console.log('handleAuthSuccess called with userData:', userData);
+      let currentUser = userData;
+      
+      // If user data not provided, fetch it
+      if (!currentUser) {
+        console.log('No user data provided, fetching from API...');
+        const result = await getCurrentUser();
+        if (result.error) {
+          console.error('Error getting current user:', result.error);
+          return;
+        }
+        currentUser = result.user;
+        console.log('Fetched user from API:', currentUser);
       }
       
       if (currentUser) {
+        console.log('Setting user state:', currentUser);
         setUser(currentUser);
+        setIsLoadingAuth(false);
         await loadUserData(currentUser.id);
       } else {
+        console.log('No user found, clearing state');
         // If no user, clear state
         setUser(null);
         setHistory([]);
         setIsPro(false);
         setDailyUsage(0);
+        setCreditBalance(null);
+        setIsLoadingAuth(false);
+        await loadExamples();
       }
     } catch (error) {
       console.error('Error refreshing user after login:', error);
+      setIsLoadingAuth(false);
     }
   };
 
@@ -509,6 +561,7 @@ const App: React.FC = () => {
       setHistory([]);
       setIsPro(false);
       setDailyUsage(0);
+      setCreditBalance(null);
       setActiveCreation(null);
       setIsGenerating(false);
       await loadExamples();
@@ -519,6 +572,41 @@ const App: React.FC = () => {
       setHistory([]);
       setIsPro(false);
       setDailyUsage(0);
+      setCreditBalance(null);
+    }
+  };
+
+  const handleBuyCredit = async () => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    try {
+      const { url } = await createOneOffCheckout();
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error: any) {
+      console.error('Error initiating credit purchase:', error);
+      alert(error.message || 'Failed to initiate purchase. Please try again.');
+    }
+  };
+
+  const handleGoPro = async () => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    try {
+      const { url } = await createSubscriptionCheckout();
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error: any) {
+      console.error('Error initiating subscription:', error);
+      alert(error.message || 'Failed to initiate subscription. Please try again.');
     }
   };
 
@@ -574,15 +662,29 @@ const App: React.FC = () => {
                   Admin
                 </a>
               )}
+              {creditBalance !== null && (
+                <div className="flex items-center space-x-2 text-zinc-300 text-xs bg-zinc-900/80 backdrop-blur-sm px-3 py-1.5 rounded-full border border-zinc-800">
+                  <span className="font-mono font-bold">
+                    {creditBalance.credits} {creditBalance.credits === 1 ? 'credit' : 'credits'}
+                  </span>
+                  {creditBalance.plan === 'PRO' && (
+                    <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full text-[10px] font-bold">
+                      PRO
+                    </span>
+                  )}
+                </div>
+              )}
               <div className="flex items-center space-x-2 text-zinc-300 text-xs bg-zinc-900/80 backdrop-blur-sm px-3 py-1.5 rounded-full border border-zinc-800">
                 <UserIcon className="w-4 h-4" />
                 <span className="font-mono hidden sm:inline">{user.email}</span>
-                {isPro && (
-                  <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full text-[10px] font-bold">
-                    PRO
-                  </span>
-                )}
               </div>
+              <a
+                href="/pricing"
+                className="text-zinc-400 hover:text-orange-500 transition-colors text-xs font-medium px-2"
+                title="Pricing"
+              >
+                Pricing
+              </a>
               <button
                 onClick={handleSignOut}
                 className="flex items-center space-x-1.5 text-zinc-400 hover:text-zinc-200 bg-zinc-900/80 hover:bg-zinc-800 px-3 py-1.5 rounded-full text-xs font-medium transition-all border border-zinc-800 hover:border-zinc-700"
@@ -615,32 +717,42 @@ const App: React.FC = () => {
               disabled={isFocused || limitReached}
             />
             <div className="mt-4 flex items-center space-x-2">
-              <div
-                className={`text-xs font-mono px-3 py-1 rounded-full border ${
-                  limitReached
-                    ? 'bg-red-500/10 border-red-500/50 text-red-400'
-                    : 'bg-zinc-900/50 border-zinc-800 text-zinc-500'
-                }`}
-              >
-                Daily Credits:{' '}
-                <span
-                  className={
-                    limitReached
-                      ? 'text-red-400 font-bold'
-                      : 'text-zinc-300'
-                  }
+              {user && creditBalance !== null ? (
+                <div
+                  className={`text-xs font-mono px-3 py-1 rounded-full border ${
+                    creditBalance.credits <= 0
+                      ? 'bg-red-500/10 border-red-500/50 text-red-400'
+                      : 'bg-zinc-900/50 border-zinc-800 text-zinc-500'
+                  }`}
                 >
-                  {currentLimit - dailyUsage}
-                </span>
-                /{currentLimit}
-              </div>
-              {!isPro && !limitReached && (
-                <span
+                  Credits:{' '}
+                  <span
+                    className={
+                      creditBalance.credits <= 0
+                        ? 'text-red-400 font-bold'
+                        : 'text-zinc-300'
+                    }
+                  >
+                    {creditBalance.credits}
+                  </span>
+                  {creditBalance.plan === 'PRO' && (
+                    <span className="ml-2 px-1.5 py-0.5 bg-orange-500/20 text-orange-400 rounded text-[10px] font-bold">
+                      PRO
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="text-xs font-mono px-3 py-1 rounded-full border bg-zinc-900/50 border-zinc-800 text-zinc-500">
+                  Credits: <span className="text-zinc-300">-</span>
+                </div>
+              )}
+              {user && (
+                <a
+                  href="/pricing"
                   className="text-[10px] text-orange-500 hover:text-orange-400 cursor-pointer animate-pulse"
-                  onClick={handleUpgradeToPro}
                 >
-                  Upgrade for more
-                </span>
+                  Get more credits
+                </a>
               )}
             </div>
           </div>
@@ -677,6 +789,7 @@ const App: React.FC = () => {
           isFocused={isFocused}
           onReset={handleReset}
           onPurchase={handlePurchase}
+          onMarkPurchased={handleMarkPurchased}
         />
       )}
 

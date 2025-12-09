@@ -10,6 +10,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { PaymentSuccess } from './components/PaymentSuccess';
 import { PaymentCancel } from './components/PaymentCancel';
 import { AdminDashboard } from './components/AdminDashboard';
+import { Pricing } from './components/Pricing';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -28,6 +29,7 @@ root.render(
       >
         <Routes>
           <Route path="/" element={<App />} />
+          <Route path="/pricing" element={<Pricing />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/payment-success" element={<PaymentSuccess />} />
           <Route path="/payment-cancel" element={<PaymentCancel />} />
