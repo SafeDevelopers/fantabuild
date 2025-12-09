@@ -1,0 +1,64 @@
+/* index.css */
+
+/* Tailwind CSS v4 - single import and config reference */
+@import "tailwindcss";
+@config "./tailwind.config.js";
+
+/* Make sure the page can actually show content */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #050505; /* matches your App background */
+  color: #f9fafb;      /* zinc-50-ish text */
+}
+
+/* Remove any global "everything is black" nonsense */
+* {
+  box-sizing: border-box;
+}
+
+/* Optional: smooth fonts */
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+    'Segoe UI', sans-serif;
+}
+
+/* Your tech grid background (used in App.tsx as bg-tech-grid) */
+.bg-tech-grid {
+  background-image: radial-gradient(circle at 1px 1px, #27272a 1px, transparent 0);
+  background-size: 20px 20px;
+}
+
+/* Optional: slow spin used in loader (class: animate-spin-slow) */
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.animate-spin-slow {
+  animation: spin-slow 2s linear infinite;
+}
+
+/* Optional: loading bar animation (used in LivePreview) */
+@keyframes loading {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(50%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+.animate-\[loading_3s_ease-in-out_infinite\] {
+  animation: loading 3s ease-in-out infinite;
+}
+
+/* Optional: glow used in App.tsx */
+.fanta-glow {
+  mix-blend-mode: screen;
+}
