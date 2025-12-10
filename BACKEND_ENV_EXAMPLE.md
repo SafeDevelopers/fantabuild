@@ -16,7 +16,8 @@ PORT=3001
 NODE_ENV=production
 
 # Frontend URL (for CORS and payment redirects)
-FRONTEND_URL=https://yourdomain.com
+# Replace with your actual frontend domain (e.g., https://addispos.com)
+FRONTEND_URL=https://addispos.com
 ```
 
 ---
@@ -187,7 +188,7 @@ ADMIN_PASSWORD=Adimin1971@
 # ============================================
 PORT=3001
 NODE_ENV=production
-FRONTEND_URL=https://yourdomain.com
+FRONTEND_URL=https://addispos.com
 
 # ============================================
 # DATABASE CONFIGURATION (PostgreSQL)
@@ -271,7 +272,7 @@ ADMIN_PASSWORD=Adimin1971@
 
 ## Important Notes
 
-- Replace `yourdomain.com` with your actual domain
+- Replace `addispos.com` with your actual frontend domain if different
 - Replace all `your_*_here` placeholders with actual values
 - Generate `SESSION_SECRET` with: `openssl rand -base64 32`
 - For CapRover one-click apps, use `postgres.captain.local` and `redis.captain.local`

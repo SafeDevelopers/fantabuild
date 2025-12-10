@@ -11,9 +11,9 @@ Replace all placeholder values with your actual values.
 ```env
 # Backend API URL
 # This is the URL where your backend API is hosted
-# For CapRover: https://api.yourdomain.com
+# For CapRover: https://api.addispos.com
 # For local development: http://localhost:3001
-VITE_API_BASE_URL=https://api.yourdomain.com
+VITE_API_BASE_URL=https://api.addispos.com
 ```
 
 ---
@@ -25,8 +25,7 @@ VITE_API_BASE_URL=https://api.yourdomain.com
 # API CONFIGURATION
 # ============================================
 # Backend API base URL
-# Replace 'yourdomain.com' with your actual domain
-VITE_API_BASE_URL=https://api.yourdomain.com
+VITE_API_BASE_URL=https://api.addispos.com
 ```
 
 ---
@@ -38,7 +37,7 @@ VITE_API_BASE_URL=https://api.yourdomain.com
 3. Go to **"App Configs"** → **"Environment Variables"**
 4. Click **"Add New Variable"**
 5. Variable name: `VITE_API_BASE_URL`
-6. Variable value: `https://api.yourdomain.com` (replace with your actual backend domain)
+6. Variable value: `https://api.addispos.com`
 7. Click **"Save & Update"**
 8. **Important:** Rebuild the app after adding this variable (CapRover will do this automatically)
 
@@ -47,7 +46,6 @@ VITE_API_BASE_URL=https://api.yourdomain.com
 ## Important Notes
 
 - **Only one variable needed** for frontend: `VITE_API_BASE_URL`
-- Replace `yourdomain.com` with your actual domain
 - Use `https://` for production (not `http://`)
 - The frontend must be rebuilt after adding this variable
 - In CapRover, the app will automatically rebuild when you save environment variables
@@ -56,14 +54,9 @@ VITE_API_BASE_URL=https://api.yourdomain.com
 
 ## Example Values
 
-**Production:**
+**Production (Current Setup):**
 ```env
-VITE_API_BASE_URL=https://api.fantabuild.com
-```
-
-**Staging:**
-```env
-VITE_API_BASE_URL=https://api-staging.fantabuild.com
+VITE_API_BASE_URL=https://api.addispos.com
 ```
 
 **Local Development:**
