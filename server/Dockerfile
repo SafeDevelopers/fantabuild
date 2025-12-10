@@ -2,9 +2,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files from server directory
-# Note: Build context is repo root when using server/Dockerfile
-COPY server/package.json server/pnpm-lock.yaml* ./
+# Copy package files
+COPY package.json pnpm-lock.yaml* ./
 
 # Install pnpm
 RUN npm install -g pnpm
@@ -12,8 +11,8 @@ RUN npm install -g pnpm
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Copy server application files
-COPY server/ ./
+# Copy application files
+COPY . .
 
 # Expose port
 EXPOSE 3001
