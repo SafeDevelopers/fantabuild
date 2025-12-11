@@ -22,6 +22,7 @@ export interface AuthResponse {
  */
 export async function signUp(email: string, password: string): Promise<{ user: AuthUser | null; error: any }> {
   try {
+    console.log('Attempting signup, API_BASE_URL:', API_BASE_URL);
     const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
       method: 'POST',
       headers: {
@@ -32,7 +33,8 @@ export async function signUp(email: string, password: string): Promise<{ user: A
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}: ${response.statusText}` }));
+      console.error('Sign up failed:', errorData);
       // Return more detailed error information
       const errorMessage = errorData.error || 'Sign up failed';
       const errorDetails = errorData.details || '';
@@ -46,11 +48,30 @@ export async function signUp(email: string, password: string): Promise<{ user: A
     }
 
     const data: AuthResponse = await response.json();
+    console.log('Sign up successful, user data:', data.user);
     // Store token
     localStorage.setItem('fanta_build_token', data.token);
     return { user: data.user, error: null };
   } catch (error: any) {
-    return { user: null, error: { message: error.message || 'Sign up failed' } };
+    console.error('Sign up error:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      API_BASE_URL
+    });
+    
+    // Provide more helpful error messages
+    let errorMessage = error.message || 'Sign up failed';
+    if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+      errorMessage = `Cannot connect to API at ${API_BASE_URL}. Please check:
+1. Backend server is running
+2. API URL is correct
+3. CORS is configured correctly
+4. Network connectivity`;
+    }
+    
+    return { user: null, error: { message: errorMessage } };
   }
 }
 
