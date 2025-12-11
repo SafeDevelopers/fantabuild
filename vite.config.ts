@@ -5,16 +5,18 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     
-    // Validate API URL in production build
+    // Warn if API URL is missing in production (but don't fail build)
+    // The runtime validation in config/api.ts will catch this when the app loads
     if (mode === 'production' && !env.VITE_API_BASE_URL) {
-      throw new Error(`
+      console.warn(`
 ╔══════════════════════════════════════════════════════════════╗
-║  BUILD ERROR: VITE_API_BASE_URL is required in production   ║
+║  WARNING: VITE_API_BASE_URL not set during build            ║
 ╠══════════════════════════════════════════════════════════════╣
-║  Please set VITE_API_BASE_URL environment variable before   ║
-║  building for production.                                    ║
+║  The app will fail at runtime if VITE_API_BASE_URL is not     ║
+║  set in CapRover environment variables.                      ║
 ║                                                              ║
-║  Example: VITE_API_BASE_URL=https://api.yourdomain.com       ║
+║  Make sure to set: VITE_API_BASE_URL=https://api.yourdomain.com ║
+║  in CapRover before deploying.                               ║
 ╚══════════════════════════════════════════════════════════════╝
       `);
     }

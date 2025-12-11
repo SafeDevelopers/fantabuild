@@ -13,7 +13,7 @@ const getApiBaseUrl = (): string => {
   
   // In production, require API URL to be set
   if (isProduction) {
-    if (!apiUrl) {
+    if (!apiUrl || apiUrl.trim() === '') {
       const error = `
 ╔══════════════════════════════════════════════════════════════╗
 ║  CRITICAL ERROR: API Base URL Not Configured                ║
@@ -22,12 +22,26 @@ const getApiBaseUrl = (): string => {
 ║  production but was not found.                               ║
 ║                                                              ║
 ║  Please set VITE_API_BASE_URL in your CapRover environment  ║
-║  variables before deploying.                                ║
+║  variables and rebuild the app.                             ║
 ║                                                              ║
-║  Example: VITE_API_BASE_URL=https://api.yourdomain.com       ║
+║  Steps to fix:                                               ║
+║  1. Go to CapRover → Your Frontend App → App Configs         ║
+║  2. Add: VITE_API_BASE_URL=https://api-staging.addispos.com ║
+║  3. Redeploy the app                                         ║
 ╚══════════════════════════════════════════════════════════════╝
       `;
       console.error(error);
+      // Show error in UI as well
+      if (typeof document !== 'undefined') {
+        document.body.innerHTML = `
+          <div style="padding: 40px; font-family: monospace; max-width: 800px; margin: 50px auto; background: #f5f5f5; border: 2px solid #f44336; border-radius: 8px;">
+            <h1 style="color: #f44336;">⚠️ Configuration Error</h1>
+            <p><strong>VITE_API_BASE_URL</strong> is not configured.</p>
+            <p>Please set this environment variable in CapRover and redeploy.</p>
+            <pre style="background: #fff; padding: 15px; border-radius: 4px; overflow-x: auto;">VITE_API_BASE_URL=https://api-staging.addispos.com</pre>
+          </div>
+        `;
+      }
       throw new Error('VITE_API_BASE_URL is required in production but was not set');
     }
     
