@@ -889,8 +889,8 @@ app.post('/api/billing/checkout/one-off', requireAuth, async (req, res) => {
         },
       ],
       mode: 'payment',
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success?type=one-off&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-cancel`,
+      success_url: `${process.env.FRONTEND_URL || 'https://fantabuild.addispos.com'}/payment-success?type=one-off&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL || 'https://fantabuild.addispos.com'}/payment-cancel`,
       customer_email: user.email,
       metadata: {
         userId,
@@ -957,8 +957,8 @@ app.post('/api/billing/checkout/subscription', requireAuth, async (req, res) => 
         },
       ],
       mode: 'subscription',
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success?type=subscription&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-cancel`,
+      success_url: `${process.env.FRONTEND_URL || 'https://fantabuild.addispos.com'}/payment-success?type=subscription&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL || 'https://fantabuild.addispos.com'}/payment-cancel`,
       customer_email: user.email,
       metadata: {
         userId,
@@ -1017,8 +1017,8 @@ app.post('/api/create-subscription-session', requireAuth, async (req, res) => {
         },
       ],
       mode: 'subscription',
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success?session_id={CHECKOUT_SESSION_ID}&type=subscription`,
-      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-cancel`,
+      success_url: `${process.env.FRONTEND_URL || 'https://fantabuild.addispos.com'}/payment-success?session_id={CHECKOUT_SESSION_ID}&type=subscription`,
+      cancel_url: `${process.env.FRONTEND_URL || 'https://fantabuild.addispos.com'}/payment-cancel`,
       client_reference_id: userId,
       customer_email: user.email,
       metadata: {
@@ -1616,9 +1616,6 @@ app.delete('/api/admin/creations/:id', requireAdmin, async (req, res) => {
 });
 
 // Start server
-// Parse PORT correctly (ensure it's a number)
-const PORT = parseInt(process.env.PORT || '3001', 10);
-
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Fanta Build server running on port ${PORT}`);
   console.log(`📝 Health check: http://0.0.0.0:${PORT}/health`);
