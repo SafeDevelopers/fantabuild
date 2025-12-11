@@ -7,15 +7,17 @@ export default defineConfig(({ mode }) => {
     
     // Warn if API URL is missing in production (but don't fail build)
     // The runtime validation in config/api.ts will catch this when the app loads
-    if (mode === 'production' && !env.VITE_API_BASE_URL) {
+    // Support both VITE_API_URL (preferred) and VITE_API_BASE_URL (backward compatibility)
+    const apiUrl = env.VITE_API_URL || env.VITE_API_BASE_URL;
+    if (mode === 'production' && !apiUrl) {
       console.warn(`
 ╔══════════════════════════════════════════════════════════════╗
-║  WARNING: VITE_API_BASE_URL not set during build            ║
+║  WARNING: VITE_API_URL not set during build                 ║
 ╠══════════════════════════════════════════════════════════════╣
-║  The app will fail at runtime if VITE_API_BASE_URL is not     ║
-║  set in CapRover environment variables.                      ║
+║  The app will fail at runtime if VITE_API_URL is not set     ║
+║  in CapRover environment variables.                          ║
 ║                                                              ║
-║  Make sure to set: VITE_API_BASE_URL=https://api.yourdomain.com ║
+║  Make sure to set: VITE_API_URL=https://api-staging.addispos.com ║
 ║  in CapRover before deploying.                               ║
 ╚══════════════════════════════════════════════════════════════╝
       `);
@@ -36,6 +38,7 @@ export default defineConfig(({ mode }) => {
       },
       // Ensure environment variables are available at build time
       define: {
+        'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL || ''),
         'import.meta.env.VITE_API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL || ''),
       }
     };
