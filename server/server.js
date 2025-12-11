@@ -138,7 +138,7 @@ CORE DIRECTIVES:
 
 // Middleware
 // CORS configuration - allow requests from frontend
-const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+const frontendUrl = process.env.FRONTEND_URL || 'https://fantabuild.addispos.com';
 const allowedOrigins = [
   frontendUrl,
   'https://fantabuild.addispos.com',
@@ -148,7 +148,9 @@ const allowedOrigins = [
   frontendUrl.replace('https://', 'http://'),
 ].filter(Boolean);
 
-console.log('🔒 CORS configured for origins:', allowedOrigins);
+// Remove duplicates
+const uniqueOrigins = [...new Set(allowedOrigins)];
+console.log('🔒 CORS configured for origins:', uniqueOrigins);
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -158,7 +160,7 @@ app.use(cors({
     }
     
     // Check if origin is in allowed list
-    const isAllowed = allowedOrigins.some(allowed => {
+    const isAllowed = uniqueOrigins.some(allowed => {
       return origin === allowed || origin.startsWith(allowed);
     });
     

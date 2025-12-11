@@ -11,7 +11,7 @@ Check your browser console (F12) and look for:
 Your backend needs `FRONTEND_URL` set in CapRover environment variables:
 
 ```env
-FRONTEND_URL=https://your-frontend-domain.com
+FRONTEND_URL=https://fantabuild.addispos.com
 ```
 
 **Important:** This should be your **frontend domain**, not the API domain.
