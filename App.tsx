@@ -46,6 +46,7 @@ const App: React.FC = () => {
   // Load example creations (for unauthenticated users or when user has no creations)
   const loadExamples = React.useCallback(async () => {
     try {
+      const { API_BASE_URL } = await import('./config/api');
       const exampleUrls = [
         'https://storage.googleapis.com/sideprojects-asronline/bringanythingtolife/vibecode-blog.json',
         'https://storage.googleapis.com/sideprojects-asronline/bringanythingtolife/cassette.json',
@@ -53,7 +54,6 @@ const App: React.FC = () => {
       ];
       
       // Try to load examples via backend proxy first (avoids CORS issues)
-      import { API_BASE_URL } from './config/api';
       const examples = await Promise.all(
         exampleUrls.map(async (url) => {
           try {
@@ -683,55 +683,56 @@ const App: React.FC = () => {
             : 'opacity-100 scale-100 blur-0'
         }`}
       >
-        {/* Top Right: User Info / Sign In Button */}
-        <div className="absolute top-4 right-4 sm:right-6 z-20 flex items-center space-x-3">
+        {/* Top Right: User Info / Sign In Button - Mobile Optimized */}
+        <div className="absolute top-2 sm:top-4 right-2 sm:right-4 md:right-6 z-20 flex items-center space-x-1.5 sm:space-x-2 md:space-x-3 flex-wrap justify-end gap-1.5 sm:gap-2 max-w-[calc(100%-2rem)] sm:max-w-none">
           {user ? (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1 sm:space-x-2 flex-wrap justify-end gap-1.5 sm:gap-2">
               {user.role === 'admin' && (
                 <a
                   href="/admin"
-                  className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                  className="bg-purple-600 hover:bg-purple-500 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all"
                   title="Admin Dashboard"
                 >
                   Admin
                 </a>
               )}
               {creditBalance !== null && (
-                <div className="flex items-center space-x-2 text-zinc-300 text-xs bg-zinc-900/80 backdrop-blur-sm px-3 py-1.5 rounded-full border border-zinc-800">
-                  <span className="font-mono font-bold">
-                    {creditBalance.credits} {creditBalance.credits === 1 ? 'credit' : 'credits'}
+                <div className="flex items-center space-x-1 sm:space-x-2 text-zinc-300 text-[10px] sm:text-xs bg-zinc-900/80 backdrop-blur-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-zinc-800">
+                  <span className="font-mono font-bold whitespace-nowrap">
+                    <span className="hidden xs:inline">{creditBalance.credits} {creditBalance.credits === 1 ? 'credit' : 'credits'}</span>
+                    <span className="xs:hidden">{creditBalance.credits}</span>
                   </span>
                   {creditBalance.plan === 'PRO' && (
-                    <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full text-[10px] font-bold">
+                    <span className="px-1.5 sm:px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full text-[9px] sm:text-[10px] font-bold">
                       PRO
                     </span>
                   )}
                 </div>
               )}
-              <div className="flex items-center space-x-2 text-zinc-300 text-xs bg-zinc-900/80 backdrop-blur-sm px-3 py-1.5 rounded-full border border-zinc-800">
-                <UserIcon className="w-4 h-4" />
-                <span className="font-mono hidden sm:inline">{user.email}</span>
+              <div className="flex items-center space-x-1 sm:space-x-2 text-zinc-300 text-[10px] sm:text-xs bg-zinc-900/80 backdrop-blur-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-zinc-800">
+                <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="font-mono hidden md:inline truncate max-w-[120px]">{user.email}</span>
               </div>
               <a
                 href="/pricing"
-                className="text-zinc-400 hover:text-orange-500 transition-colors text-xs font-medium px-2"
+                className="text-zinc-400 hover:text-orange-500 transition-colors text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 hidden sm:inline"
                 title="Pricing"
               >
                 Pricing
               </a>
               <button
                 onClick={handleSignOut}
-                className="flex items-center space-x-1.5 text-zinc-400 hover:text-zinc-200 bg-zinc-900/80 hover:bg-zinc-800 px-3 py-1.5 rounded-full text-xs font-medium transition-all border border-zinc-800 hover:border-zinc-700"
+                className="flex items-center space-x-1 sm:space-x-1.5 text-zinc-400 hover:text-zinc-200 bg-zinc-900/80 hover:bg-zinc-800 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all border border-zinc-800 hover:border-zinc-700"
                 title="Sign Out"
               >
-                <ArrowRightOnRectangleIcon className="w-4 h-4" />
+                <ArrowRightOnRectangleIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Sign Out</span>
               </button>
             </div>
           ) : (
             <button
               onClick={() => setShowAuthModal(true)}
-              className="bg-orange-600 hover:bg-orange-500 text-white px-4 py-1.5 rounded-full text-xs font-medium transition-all shadow-lg shadow-orange-900/20 hover:shadow-orange-900/40"
+              className="bg-orange-600 hover:bg-orange-500 text-white px-3 sm:px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all shadow-lg shadow-orange-900/20 hover:shadow-orange-900/40"
               title="Sign In"
             >
               Sign In
@@ -739,18 +740,18 @@ const App: React.FC = () => {
           )}
         </div>
 
-        <div className="flex-1 flex flex-col justify-center items-center w-full py-12 md:py-20">
-          <div className="w-full mb-8 md:mb-16">
+        <div className="flex-1 flex flex-col justify-center items-center w-full py-6 sm:py-8 md:py-12 lg:py-20">
+          <div className="w-full mb-6 sm:mb-8 md:mb-12 lg:mb-16">
             <Hero />
           </div>
 
-          <div className="w-full flex flex-col items-center mb-8">
+          <div className="w-full flex flex-col items-center mb-6 sm:mb-8 px-2 sm:px-0">
             <InputArea
               onGenerate={handleGenerate}
               isGenerating={isGenerating}
               disabled={isFocused || limitReached}
             />
-            <div className="mt-4 flex items-center space-x-2">
+            <div className="mt-3 sm:mt-4 flex items-center space-x-2 flex-wrap justify-center gap-2">
               {user && creditBalance !== null ? (
                 <div
                   className={`text-xs font-mono px-3 py-1 rounded-full border ${
@@ -792,16 +793,16 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-shrink-0 pb-6 w-full mt-auto flex flex-col items-center gap-6">
-          <div className="w-full px-2 md:px-0">
+        <div className="flex-shrink-0 pb-4 sm:pb-6 w-full mt-auto flex flex-col items-center gap-4 sm:gap-6">
+          <div className="w-full px-1 sm:px-2 md:px-0">
             <CreationHistory
               history={history}
               onSelect={handleSelectCreation}
               onDelete={handleDeleteCreation}
             />
           </div>
-          <div className="flex items-center space-x-4">
-            <p className="text-zinc-700 text-xs font-mono">
+          <div className="flex items-center space-x-3 sm:space-x-4 px-2">
+            <p className="text-zinc-700 text-[10px] sm:text-xs font-mono">
               © {new Date().getFullYear()} Fanta Build Inc.
             </p>
             <button
@@ -809,7 +810,7 @@ const App: React.FC = () => {
               className="text-zinc-700 hover:text-orange-500 transition-colors"
               title="Replay Tour"
             >
-              <QuestionMarkCircleIcon className="w-4 h-4" />
+              <QuestionMarkCircleIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
           </div>
         </div>
@@ -827,16 +828,16 @@ const App: React.FC = () => {
         />
       )}
 
-      <div className="fixed bottom-4 right-4 z-50">
+      <div className="fixed bottom-3 sm:bottom-4 right-3 sm:right-4 z-50">
         <button
           onClick={handleImportClick}
-          className="flex items-center space-x-2 p-2 text-zinc-600 hover:text-zinc-300 transition-colors opacity-60 hover:opacity-100"
+          className="flex items-center space-x-1.5 sm:space-x-2 p-1.5 sm:p-2 text-zinc-600 hover:text-zinc-300 transition-colors opacity-60 hover:opacity-100 bg-zinc-900/50 backdrop-blur-sm rounded-lg border border-zinc-800"
           title="Import Artifact"
         >
-          <span className="text-xs font-medium uppercase tracking-wider hidden sm:inline">
+          <span className="text-[10px] sm:text-xs font-medium uppercase tracking-wider hidden sm:inline">
             Upload previous artifact
           </span>
-          <ArrowUpTrayIcon className="w-5 h-5" />
+          <ArrowUpTrayIcon className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
         <input
           type="file"

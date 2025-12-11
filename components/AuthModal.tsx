@@ -64,9 +64,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   };
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all scale-100">
-        <div className="p-6">
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl sm:rounded-2xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all scale-100 max-h-[90vh] overflow-y-auto">
+        <div className="p-4 sm:p-5 md:p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-white">
               {isSignUp ? 'Create Account' : 'Sign In'}

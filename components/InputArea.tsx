@@ -122,16 +122,16 @@ export const InputArea: React.FC<InputAreaProps> = ({ onGenerate, isGenerating, 
 
   return (
     <div className="w-full max-w-4xl mx-auto perspective-1000">
-        {/* Mode Selector */}
-        <div className="flex justify-center mb-4">
-            <div className="inline-flex bg-zinc-900/80 backdrop-blur-md rounded-full p-1 border border-zinc-800 shadow-xl">
+        {/* Mode Selector - Mobile Optimized */}
+        <div className="flex justify-center mb-3 sm:mb-4 px-2">
+            <div className="inline-flex bg-zinc-900/80 backdrop-blur-md rounded-full p-0.5 sm:p-1 border border-zinc-800 shadow-xl overflow-x-auto scrollbar-hide max-w-full">
                 {modes.map((m) => (
                     <button
                         key={m.id}
                         onClick={() => setMode(m.id)}
                         disabled={disabled || isGenerating}
                         className={`
-                            relative flex items-center space-x-2 px-4 py-2 rounded-full text-xs md:text-sm font-medium transition-all duration-300
+                            relative flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-full text-[10px] xs:text-xs sm:text-xs md:text-sm font-medium transition-all duration-300 flex-shrink-0
                             ${mode === m.id 
                                 ? 'text-white shadow-lg' 
                                 : 'text-zinc-500 hover:text-zinc-300'
@@ -141,11 +141,20 @@ export const InputArea: React.FC<InputAreaProps> = ({ onGenerate, isGenerating, 
                         {mode === m.id && (
                             <div className="absolute inset-0 bg-zinc-800 rounded-full border border-zinc-700 -z-10 animate-in fade-in zoom-in duration-200"></div>
                         )}
-                        <m.icon className={`w-4 h-4 ${mode === m.id ? 'text-orange-500' : ''}`} />
-                        <span>{m.label}</span>
+                        <m.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 ${mode === m.id ? 'text-orange-500' : ''}`} />
+                        <span className="whitespace-nowrap">{m.label}</span>
                     </button>
                 ))}
             </div>
+            <style>{`
+                .scrollbar-hide::-webkit-scrollbar {
+                    display: none;
+                }
+                .scrollbar-hide {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                }
+            `}</style>
         </div>
 
       <div 
@@ -176,38 +185,38 @@ export const InputArea: React.FC<InputAreaProps> = ({ onGenerate, isGenerating, 
                  style={{backgroundImage: 'linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(90deg, #ffffff 1px, transparent 1px)', backgroundSize: '32px 32px'}}>
             </div>
             
-            <div className="relative z-10 flex flex-col items-center text-center w-full h-full p-6 md:p-8">
+            <div className="relative z-10 flex flex-col items-center text-center w-full h-full p-4 sm:p-6 md:p-8">
                 
                 {/* Header Section */}
                 {!selectedFile && (
-                    <div className="mb-6 flex flex-col items-center transition-all duration-300">
-                        <div className={`relative w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center mb-4 transition-transform duration-500 ${isDragging ? 'scale-110' : ''}`}>
-                            <div className={`absolute inset-0 rounded-2xl bg-zinc-800 border border-zinc-700 shadow-xl flex items-center justify-center ${isGenerating ? 'animate-pulse' : ''}`}>
+                    <div className="mb-4 sm:mb-5 md:mb-6 flex flex-col items-center transition-all duration-300">
+                        <div className={`relative w-10 h-10 xs:w-12 xs:h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-xl sm:rounded-2xl flex items-center justify-center mb-3 sm:mb-4 transition-transform duration-500 ${isDragging ? 'scale-110' : ''}`}>
+                            <div className={`absolute inset-0 rounded-xl sm:rounded-2xl bg-zinc-800 border border-zinc-700 shadow-xl flex items-center justify-center ${isGenerating ? 'animate-pulse' : ''}`}>
                                 {isGenerating ? (
-                                    <CpuChipIcon className="w-6 h-6 md:w-8 md:h-8 text-orange-400 animate-spin-slow" />
+                                    <CpuChipIcon className="w-5 h-5 xs:w-6 xs:h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-orange-400 animate-spin-slow" />
                                 ) : disabled ? (
-                                    <LockClosedIcon className="w-6 h-6 md:w-8 md:h-8 text-red-500/50" />
+                                    <LockClosedIcon className="w-5 h-5 xs:w-6 xs:h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-red-500/50" />
                                 ) : (
-                                    <ArrowUpTrayIcon className={`w-6 h-6 md:w-8 md:h-8 text-zinc-300 transition-all duration-300 ${isDragging ? '-translate-y-1 text-orange-400' : ''}`} />
+                                    <ArrowUpTrayIcon className={`w-5 h-5 xs:w-6 xs:h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-zinc-300 transition-all duration-300 ${isDragging ? '-translate-y-1 text-orange-400' : ''}`} />
                                 )}
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <h3 className="flex flex-col md:flex-row items-center justify-center text-lg md:text-2xl text-zinc-100 leading-none font-bold tracking-tighter gap-2 md:gap-3">
+                        <div className="space-y-1.5 sm:space-y-2 px-2">
+                            <h3 className="flex flex-col sm:flex-row items-center justify-center text-base xs:text-lg sm:text-xl md:text-2xl text-zinc-100 leading-tight sm:leading-none font-bold tracking-tighter gap-1.5 sm:gap-2 md:gap-3">
                                 {disabled ? (
                                     <span className="text-zinc-500">Daily Limit Reached</span>
                                 ) : (
                                     <>
                                         <span>Bring</span>
-                                        <div className="h-6 md:h-8 flex items-center justify-center">
+                                        <div className="h-5 xs:h-6 sm:h-7 md:h-8 flex items-center justify-center">
                                            <CyclingText />
                                         </div>
                                         <span>to life</span>
                                     </>
                                 )}
                             </h3>
-                            <p className="text-zinc-500 text-xs md:text-sm font-light tracking-wide">
+                            <p className="text-zinc-500 text-[11px] xs:text-xs sm:text-sm md:text-sm font-light tracking-wide px-2">
                                 {disabled ? "Check back tomorrow for more credits." : "Drop an image, or type a prompt below"}
                             </p>
                         </div>

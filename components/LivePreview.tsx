@@ -506,12 +506,12 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
     <div
       className={`
         fixed z-[1000] flex flex-col
-        rounded-lg overflow-hidden border border-zinc-800 bg-[#0E0E10] shadow-2xl
+        rounded-lg sm:rounded-xl overflow-hidden border border-zinc-800 bg-[#0E0E10] shadow-2xl
         transition-all duration-500 ease-in-out
         ${
           isFocused
-            ? 'top-2 bottom-2 left-2 right-2 md:top-4 md:bottom-4 md:left-4 md:right-4 opacity-100 scale-100 pointer-events-auto'
-            : 'top-1/2 left-1/2 w-[90%] h-[60%] -translate-x-1/2 -translate-y-1/2 opacity-0 scale-95 pointer-events-none'
+            ? 'top-0 bottom-0 left-0 right-0 sm:top-1 sm:bottom-1 sm:left-1 sm:right-1 md:top-2 md:bottom-2 md:left-2 md:right-2 lg:top-4 lg:bottom-4 lg:left-4 lg:right-4 opacity-100 scale-100 pointer-events-auto rounded-none sm:rounded-lg'
+            : 'top-1/2 left-1/2 w-[95%] sm:w-[90%] h-[70%] sm:h-[60%] -translate-x-1/2 -translate-y-1/2 opacity-0 scale-95 pointer-events-none'
         }
       `}
     >
@@ -530,27 +530,27 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
         currentCredits={currentCredits}
       />
 
-      {/* Minimal Technical Header */}
-      <div className="bg-[#121214] px-4 py-3 flex items-center justify-between border-b border-zinc-800 shrink-0 h-[52px]">
+      {/* Minimal Technical Header - Mobile Optimized */}
+      <div className="bg-[#121214] px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 flex items-center justify-between border-b border-zinc-800 shrink-0 min-h-[48px] sm:h-[52px]">
         {/* Left: Controls */}
-        <div className="flex items-center space-x-3 w-32">
-          <div className="flex space-x-2 group/controls">
+        <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+          <div className="flex space-x-1.5 sm:space-x-2 group/controls">
             <button
               onClick={onReset}
-              className="w-3 h-3 rounded-full bg-zinc-700 group-hover/controls:bg-red-500 hover:!bg-red-600 transition-colors flex items-center justify-center focus:outline-none"
+              className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-zinc-700 group-hover/controls:bg-red-500 hover:!bg-red-600 transition-colors flex items-center justify-center focus:outline-none"
               title="Close Preview"
             >
-              <XMarkIcon className="w-2 h-2 text-black opacity-0 group-hover/controls:opacity-100" />
+              <XMarkIcon className="w-1.5 h-1.5 sm:w-2 sm:h-2 text-black opacity-0 group-hover/controls:opacity-100" />
             </button>
-            <div className="w-3 h-3 rounded-full bg-zinc-700 group-hover/controls:bg-yellow-500 transition-colors"></div>
-            <div className="w-3 h-3 rounded-full bg-zinc-700 group-hover/controls:bg-green-500 transition-colors"></div>
+            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-zinc-700 group-hover/controls:bg-yellow-500 transition-colors"></div>
+            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-zinc-700 group-hover/controls:bg-green-500 transition-colors"></div>
           </div>
         </div>
 
         {/* Center: Title */}
-        <div className="flex items-center space-x-2 text-zinc-500">
-          <CodeBracketIcon className="w-3 h-3" />
-          <span className="text-[11px] font-mono uppercase tracking-wider truncate max-w-[150px] md:max-w-xs">
+        <div className="flex items-center space-x-1.5 sm:space-x-2 text-zinc-500 flex-1 min-w-0 px-1 sm:px-2">
+          <CodeBracketIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
+          <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-wider truncate">
             {isLoading
               ? 'Processing...'
               : creation
@@ -559,8 +559,8 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
           </span>
         </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center justify-end space-x-2 w-auto">
+        {/* Right: Actions - Mobile Optimized */}
+        <div className="flex items-center justify-end space-x-1 sm:space-x-2 flex-shrink-0">
           {!isLoading && creation && (
             <>
               {creation.originalImage && (
@@ -569,13 +569,13 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
                   title={
                     showSplitView ? 'Show App Only' : 'Compare with Original'
                   }
-                  className={`p-1.5 rounded-md transition-all ${
+                  className={`p-1 sm:p-1.5 rounded-md transition-all ${
                     showSplitView
                       ? 'bg-zinc-800 text-zinc-100'
                       : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
                   }`}
                 >
-                  <ViewColumnsIcon className="w-4 h-4" />
+                  <ViewColumnsIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
               )}
 
@@ -583,22 +583,22 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
               <button
                 onClick={handleExportPng}
                 disabled={isExportingPng}
-                className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors"
+                className="p-1 sm:p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors"
                 title="Export Screenshot (PNG)"
               >
                 {isExportingPng ? (
-                  <div className="w-4 h-4 border-2 border-zinc-500 border-t-zinc-200 rounded-full animate-spin"></div>
+                  <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 border-2 border-zinc-500 border-t-zinc-200 rounded-full animate-spin"></div>
                 ) : (
-                  <PhotoIcon className="w-4 h-4" />
+                  <PhotoIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 )}
               </button>
 
-              {/* Download/Purchase Button */}
+              {/* Download/Purchase Button - Mobile Optimized */}
               <button
                 onClick={handleExportClick}
                 disabled={isExporting}
                 className={`
-                            flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all
+                            flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-bold transition-all
                             ${
                               creation.purchased
                                 ? 'bg-zinc-800 text-green-400 hover:bg-zinc-700'
@@ -607,16 +607,16 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
                         `}
               >
                 {isExporting ? (
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                 ) : creation.purchased ? (
                   <>
-                    <ArrowDownTrayIcon className="w-4 h-4" />
+                    <ArrowDownTrayIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span className="hidden sm:inline">Download HTML</span>
                   </>
                 ) : (
                   <>
-                    <LockClosedIcon className="w-3 h-3" />
-                    <span>Get Code</span>
+                    <LockClosedIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                    <span className="text-[10px] sm:text-xs">Get Code</span>
                   </>
                 )}
               </button>

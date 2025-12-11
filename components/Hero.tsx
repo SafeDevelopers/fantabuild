@@ -155,15 +155,15 @@ export const Hero: React.FC = () => {
       </div>
 
       {/* Hero Text Content */}
-      <div className="text-center relative z-10 max-w-6xl mx-auto px-4 pt-8">
+      <div className="text-center relative z-10 max-w-6xl mx-auto px-3 sm:px-4 pt-4 sm:pt-6 md:pt-8">
         {/* Spotlight effect behind text */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%) pointer-events-none"></div>
 
-        <h1 className="relative text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter text-white mb-6 leading-[1.1]">
+        <h1 className="relative text-3xl xs:text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold tracking-tighter text-white mb-4 sm:mb-5 md:mb-6 leading-[1.1] px-2">
           Fanta <span className="text-orange-500 drop-shadow-[0_0_30px_rgba(249,115,22,0.3)]">Build</span><br/>
-          <span className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl opacity-90">Ideas to <span className="underline decoration-4 decoration-orange-500 underline-offset-4 md:underline-offset-8 text-white">Reality</span>.</span>
+          <span className="text-2xl xs:text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl opacity-90">Ideas to <span className="underline decoration-2 sm:decoration-3 md:decoration-4 decoration-orange-500 underline-offset-2 sm:underline-offset-3 md:underline-offset-4 lg:underline-offset-8 text-white">Reality</span>.</span>
         </h1>
-        <p className="text-base sm:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed font-light">
+        <p className="text-sm xs:text-base sm:text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed font-light px-2">
           Transform your raw ideas into business-ready software. Drop in an old map, a floor plan, a diagram, or a doodle, and watch it turn into a working interactive experience instantly.
         </p>
       </div>
