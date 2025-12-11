@@ -51,22 +51,56 @@ const App: React.FC = () => {
         'https://storage.googleapis.com/sideprojects-asronline/bringanythingtolife/cassette.json',
         'https://storage.googleapis.com/sideprojects-asronline/bringanythingtolife/chess.json',
       ];
+      
+      // Try to load examples via backend proxy first (avoids CORS issues)
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
       const examples = await Promise.all(
         exampleUrls.map(async (url) => {
-          const res = await fetch(url);
-          if (!res.ok) return null;
-          const data = await res.json();
-          return {
-            ...data,
-            timestamp: new Date(data.timestamp || Date.now()),
-            id: data.id || crypto.randomUUID(),
-            purchased: false,
-          } as Creation;
+          try {
+            // Try backend proxy first
+            const proxyUrl = `${API_BASE_URL}/api/examples/proxy?url=${encodeURIComponent(url)}`;
+            const res = await fetch(proxyUrl);
+            if (res.ok) {
+              const data = await res.json();
+              return {
+                ...data,
+                timestamp: new Date(data.timestamp || Date.now()),
+                id: data.id || crypto.randomUUID(),
+                purchased: false,
+              } as Creation;
+            }
+          } catch (proxyError) {
+            console.warn('Backend proxy failed, trying direct fetch:', proxyError);
+          }
+          
+          // Fallback to direct fetch (may fail due to CORS)
+          try {
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const data = await res.json();
+            return {
+              ...data,
+              timestamp: new Date(data.timestamp || Date.now()),
+              id: data.id || crypto.randomUUID(),
+              purchased: false,
+            } as Creation;
+          } catch (directError) {
+            // CORS error or network error - silently skip this example
+            console.warn(`Could not load example from ${url}:`, directError);
+            return null;
+          }
         }),
       );
-      setHistory(examples.filter((e): e is Creation => e !== null));
+      const validExamples = examples.filter((e): e is Creation => e !== null);
+      setHistory(validExamples);
+      
+      if (validExamples.length === 0) {
+        console.info('No examples could be loaded. This is normal if CORS is blocking external resources.');
+      }
     } catch (e) {
       console.error('Error loading examples:', e);
+      // Don't break the app if examples fail to load
+      setHistory([]);
     }
   }, []);
 
