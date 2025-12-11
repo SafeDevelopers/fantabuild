@@ -254,6 +254,40 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Example proxy endpoint (to avoid CORS issues when loading examples from external sources)
+app.get('/api/examples/proxy', async (req, res) => {
+  try {
+    const url = req.query.url;
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ error: 'URL parameter required' });
+    }
+
+    // Validate URL is from allowed domains (security)
+    const allowedDomains = [
+      'storage.googleapis.com',
+      'sideprojects-asronline',
+    ];
+    const urlObj = new URL(url);
+    const isAllowed = allowedDomains.some(domain => urlObj.hostname.includes(domain));
+    
+    if (!isAllowed) {
+      return res.status(403).json({ error: 'Domain not allowed' });
+    }
+
+    // Fetch the resource
+    const response = await fetch(url);
+    if (!response.ok) {
+      return res.status(response.status).json({ error: 'Failed to fetch resource' });
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Example proxy error:', error);
+    res.status(500).json({ error: 'Failed to proxy example' });
+  }
+});
+
 /**
  * Authentication endpoints
  */
