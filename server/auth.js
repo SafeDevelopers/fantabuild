@@ -137,6 +137,10 @@ export function isPermanentAdmin(email, password) {
 /**
  * Ensure permanent admin account exists in database
  */
+/**
+ * Ensure permanent admin account exists in database
+ * Resilient to missing tables - will retry after schema creation if needed
+ */
 export async function ensurePermanentAdmin() {
   try {
     // Check if admin exists
@@ -145,19 +149,21 @@ export async function ensurePermanentAdmin() {
     if (!admin) {
       // Create admin account if it doesn't exist
       const passwordHash = await hashPassword(ADMIN_PASSWORD);
+      
       const result = await pool.query(
-        `INSERT INTO users (email, password_hash, role, subscription_status) 
-         VALUES ($1, $2, $3, $4) 
-         RETURNING id, email, subscription_status, role, daily_usage_count, last_reset_date, created_at`,
+        `INSERT INTO users (email, password_hash, role, subscription_status, plan, credits) 
+         VALUES ($1, $2, $3, $4, 'PRO', 999) 
+         RETURNING id, email, subscription_status, role, plan, credits, daily_usage_count, last_reset_date, created_at`,
         [ADMIN_EMAIL, passwordHash, 'admin', 'pro']
       );
       admin = result.rows[0];
+      
       console.log('✅ Permanent admin account created:', ADMIN_EMAIL);
     } else {
       // Ensure admin always has admin role and pro subscription
       if (admin.role !== 'admin' || admin.subscription_status !== 'pro') {
         await pool.query(
-          `UPDATE users SET role = 'admin', subscription_status = 'pro' WHERE email = $1`,
+          `UPDATE users SET role = 'admin', subscription_status = 'pro', plan = 'PRO', credits = 999 WHERE email = $1`,
           [ADMIN_EMAIL]
         );
         console.log('✅ Permanent admin account updated:', ADMIN_EMAIL);
@@ -168,7 +174,16 @@ export async function ensurePermanentAdmin() {
     
     return admin;
   } catch (error) {
-    console.error('❌ Error ensuring permanent admin:', error);
+    // If users table doesn't exist (42P01), this is a critical error
+    // The schema should have been created before this function is called
+    if (error.code === '42P01') {
+      console.error('❌ CRITICAL: Users table does not exist.');
+      console.error('   Schema migration should have run before ensurePermanentAdmin().');
+      console.error('   This indicates a startup sequence problem.');
+      throw error; // Re-throw to let server.js handle it
+    }
+    
+    console.error('❌ Error ensuring permanent admin:', error.message);
     return null;
   }
 }

@@ -16,6 +16,7 @@ import * as creationsDb from './creations-db.js';
 import * as adminDb from './admin.js';
 import { PAYMENT_GATEWAYS, createPaymentSession, verifyPaymentCallback, getAvailableGateways } from './payment-gateways.js';
 import * as credits from './credits.js';
+import * as migrations from './migrations.js';
 
 // Load environment variables - ensure we load from the server directory
 import { fileURLToPath } from 'url';
@@ -1527,18 +1528,41 @@ app.delete('/api/admin/creations/:id', requireAdmin, async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Fanta Build server running on port ${PORT}`);
   console.log(`📝 Health check: http://localhost:${PORT}/health`);
   console.log(`🔐 Admin API: http://localhost:${PORT}/api/admin/*`);
   console.log('');
   
-  // Initialize permanent admin account after server starts
-  auth.ensurePermanentAdmin().then(() => {
-    console.log('✅ Permanent admin account ready');
-  }).catch(err => {
-    console.error('⚠️  Could not initialize permanent admin:', err.message);
-  });
+  try {
+    // Step 1: Ensure database schema exists BEFORE any queries
+    console.log('🔄 Ensuring database schema...');
+    await migrations.ensureSchema();
+    console.log('✅ Schema ensured');
+    
+    // Step 2: Initialize permanent admin account (schema is ready)
+    console.log('🔄 Ensuring permanent admin account...');
+    const admin = await auth.ensurePermanentAdmin();
+    
+    if (admin) {
+      console.log('✅ Permanent admin account ready');
+    } else {
+      console.error('⚠️  Could not initialize permanent admin account');
+    }
+  } catch (err) {
+    console.error('❌ Initialization error:', err.message);
+    console.error('   Error code:', err.code);
+    console.error('   Error detail:', err.detail);
+    
+    if (err.code === '42P01') {
+      console.error('❌ CRITICAL: Database table does not exist. Schema migration failed.');
+      console.error('   The server cannot start without required database tables.');
+      console.error('   Please check database connection and permissions.');
+      process.exit(1);
+    } else {
+      console.error('⚠️  Server will continue, but some features may not work.');
+    }
+  }
   
   if (!ai || !stripe) {
     console.log('⚠️  Some services are not configured. Check your .env file.');
