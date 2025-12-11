@@ -792,8 +792,8 @@ app.post('/api/create-checkout-session', requireAuth, async (req, res) => {
         },
       ],
       mode: 'payment',
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success?session_id={CHECKOUT_SESSION_ID}&creation_id=${creationId}`,
-      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-cancel`,
+      success_url: `${process.env.FRONTEND_URL || 'https://fantabuild.addispos.com'}/payment-success?session_id={CHECKOUT_SESSION_ID}&creation_id=${creationId}`,
+      cancel_url: `${process.env.FRONTEND_URL || 'https://fantabuild.addispos.com'}/payment-cancel`,
       client_reference_id: `${userId}:${creationId}`,
       customer_email: user.email,
       metadata: {

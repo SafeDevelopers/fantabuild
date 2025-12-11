@@ -45,8 +45,8 @@ async function initTeleBirrPayment(amount, currency, orderId, customerInfo) {
     outTradeNo: orderId,
     subject: 'Fanta Build Purchase',
     totalAmount: amountInETB.toString(),
-    notifyUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/api/payment/telebirr/callback`,
-    returnUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success?gateway=telebirr&order_id=${orderId}`,
+    notifyUrl: `${process.env.FRONTEND_URL || 'https://fantabuild.addispos.com'}/api/payment/telebirr/callback`,
+    returnUrl: `${process.env.FRONTEND_URL || 'https://fantabuild.addispos.com'}/payment-success?gateway=telebirr&order_id=${orderId}`,
     receiveName: 'Fanta Build',
     timeoutExpress: '30m',
   };
