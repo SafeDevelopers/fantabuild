@@ -35,7 +35,7 @@ export const PaymentSuccess: React.FC = () => {
         // Handle PayPal payments (need to capture the order)
         if (gateway === 'paypal' && orderId) {
           const token = localStorage.getItem('fanta_build_token');
-          import { API_BASE_URL } from '../config/api';
+          const { API_BASE_URL } = await import('../config/api');
           
           const captureResponse = await fetch(`${API_BASE_URL}/api/payment/paypal/capture`, {
             method: 'POST',
