@@ -136,9 +136,33 @@ CORE DIRECTIVES:
 `;
 
 // Middleware
+// CORS configuration - allow requests from frontend
+const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+console.log('🔒 CORS configured for origin:', frontendUrl);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Allow requests from configured frontend URL
+    if (origin === frontendUrl || origin.startsWith(frontendUrl.replace('http://', 'https://'))) {
+      return callback(null, true);
+    }
+    
+    // In development, allow localhost
+    if (process.env.NODE_ENV !== 'production' && origin.startsWith('http://localhost:')) {
+      return callback(null, true);
+    }
+    
+    console.warn('⚠️  CORS blocked request from origin:', origin);
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
 app.use(express.raw({ type: 'application/json' })); // For webhook signature verification

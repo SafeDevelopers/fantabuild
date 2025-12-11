@@ -60,6 +60,7 @@ export async function signUp(email: string, password: string): Promise<{ user: A
 export async function signIn(email: string, password: string): Promise<{ user: AuthUser | null; error: any }> {
   try {
     console.log('Signing in user:', email);
+    console.log('API_BASE_URL:', API_BASE_URL);
     const response = await fetch(`${API_BASE_URL}/api/auth/signin`, {
       method: 'POST',
       headers: {
@@ -70,7 +71,7 @@ export async function signIn(email: string, password: string): Promise<{ user: A
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}: ${response.statusText}` }));
       console.error('Sign in failed:', errorData);
       // Return more detailed error information
       const errorMessage = errorData.error || 'Sign in failed';
@@ -89,7 +90,24 @@ export async function signIn(email: string, password: string): Promise<{ user: A
     return { user: data.user, error: null };
   } catch (error: any) {
     console.error('Sign in error:', error);
-    return { user: null, error: { message: error.message || 'Sign in failed' } };
+    console.error('Error details:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      API_BASE_URL
+    });
+    
+    // Provide more helpful error messages
+    let errorMessage = error.message || 'Sign in failed';
+    if (error.message === 'Failed to fetch') {
+      errorMessage = `Cannot connect to API at ${API_BASE_URL}. Please check:
+1. Backend server is running
+2. API URL is correct
+3. CORS is configured correctly
+4. Network connectivity`;
+    }
+    
+    return { user: null, error: { message: errorMessage } };
   }
 }
 
