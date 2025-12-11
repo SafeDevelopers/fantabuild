@@ -53,7 +53,7 @@ const App: React.FC = () => {
       ];
       
       // Try to load examples via backend proxy first (avoids CORS issues)
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+      import { API_BASE_URL } from './config/api';
       const examples = await Promise.all(
         exampleUrls.map(async (url) => {
           try {

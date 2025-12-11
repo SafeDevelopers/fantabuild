@@ -4,7 +4,7 @@
 */
 export type GenerationMode = 'web' | 'mobile' | 'social' | 'logo' | 'video';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+import { API_BASE_URL } from '../config/api';
 
 /**
  * Generate content using Gemini AI via backend API
