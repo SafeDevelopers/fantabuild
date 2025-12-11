@@ -150,7 +150,38 @@ const allowedOrigins = [
 
 // Remove duplicates
 const uniqueOrigins = [...new Set(allowedOrigins)];
-console.log('🔒 CORS configured for origins:', uniqueOrigins);
+
+// Helper function to check if origin is allowed
+const isOriginAllowed = (origin) => {
+  if (!origin) {
+    return false; // No origin means not a browser request, but we still need to check
+  }
+  
+  // Exact match or starts with check
+  return uniqueOrigins.some(allowed => {
+    return origin === allowed || origin.startsWith(allowed);
+  });
+};
+
+// Helper function to get allowed origin (echo back if allowed)
+const getAllowedOrigin = (origin) => {
+  if (!origin) {
+    return null; // No origin header
+  }
+  
+  if (isOriginAllowed(origin)) {
+    return origin; // Echo back the origin if it's allowed
+  }
+  
+  return null; // Not allowed
+};
+
+// Log allowed origins on startup
+console.log('🔒 CORS Configuration:');
+console.log('   Allowed Origins:', uniqueOrigins);
+console.log('   Credentials: true');
+console.log('   Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+console.log('   Headers: Content-Type, Authorization');
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -160,11 +191,7 @@ app.use(cors({
     }
     
     // Check if origin is in allowed list
-    const isAllowed = uniqueOrigins.some(allowed => {
-      return origin === allowed || origin.startsWith(allowed);
-    });
-    
-    if (isAllowed) {
+    if (isOriginAllowed(origin)) {
       return callback(null, true);
     }
     
@@ -174,26 +201,45 @@ app.use(cors({
     }
     
     console.warn('⚠️  CORS blocked request from origin:', origin);
-    console.warn('   Allowed origins:', allowedOrigins);
+    console.warn('   Allowed origins:', uniqueOrigins);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   exposedHeaders: ['Content-Type', 'Authorization'],
   preflightContinue: false,
   optionsSuccessStatus: 204,
 }));
 
-// Handle OPTIONS preflight requests explicitly
+// Handle OPTIONS preflight requests explicitly - check against whitelist
 app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  const origin = req.headers.origin;
+  const allowedOrigin = getAllowedOrigin(origin);
+  
+  if (allowedOrigin) {
+    res.header('Access-Control-Allow-Origin', allowedOrigin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  } else if (!origin) {
+    // No origin header (non-browser request), allow it
+    res.header('Access-Control-Allow-Origin', '*');
+  } else {
+    // Origin not allowed - don't set CORS headers, but still respond
+    console.warn('⚠️  OPTIONS preflight blocked for origin:', origin);
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.header('Access-Control-Max-Age', '86400'); // 24 hours
   res.sendStatus(204);
 });
+// Ensure CORS headers are set for all responses (backup to cors middleware)
+app.use((req, res, next) => {
+  // Set CORS headers for all routes as a backup
+  setCorsHeaders(req, res);
+  next();
+});
+
 app.use(express.json());
 app.use(express.raw({ type: 'application/json' })); // For webhook signature verification
 
@@ -284,14 +330,17 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Helper function to set CORS headers
+// Helper function to set CORS headers for all routes
+// This ensures CORS headers are applied even if cors middleware doesn't catch it
 const setCorsHeaders = (req, res) => {
   const origin = req.headers.origin;
-  if (origin && uniqueOrigins.some(allowed => origin === allowed || origin.startsWith(allowed))) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+  const allowedOrigin = getAllowedOrigin(origin);
+  
+  if (allowedOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   }
 };
 
