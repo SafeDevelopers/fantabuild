@@ -284,9 +284,23 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Helper function to set CORS headers
+const setCorsHeaders = (req, res) => {
+  const origin = req.headers.origin;
+  if (origin && uniqueOrigins.some(allowed => origin === allowed || origin.startsWith(allowed))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  }
+};
+
 // Asset proxy endpoint - fetches JSON from Google Cloud Storage server-side
 // This avoids CORS issues when frontend tries to fetch directly from GCS
 app.get('/api/assets/:name', async (req, res) => {
+  // Set CORS headers for all responses
+  setCorsHeaders(req, res);
+  
   try {
     const { name } = req.params;
     
