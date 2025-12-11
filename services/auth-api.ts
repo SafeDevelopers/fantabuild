@@ -60,7 +60,6 @@ export async function signUp(email: string, password: string): Promise<{ user: A
 export async function signIn(email: string, password: string): Promise<{ user: AuthUser | null; error: any }> {
   try {
     console.log('Signing in user:', email);
-    console.log('API_BASE_URL:', API_BASE_URL);
     const response = await fetch(`${API_BASE_URL}/api/auth/signin`, {
       method: 'POST',
       headers: {
