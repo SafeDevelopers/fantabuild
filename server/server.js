@@ -284,37 +284,50 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Example proxy endpoint (to avoid CORS issues when loading examples from external sources)
-app.get('/api/examples/proxy', async (req, res) => {
+// Asset proxy endpoint - fetches JSON from Google Cloud Storage server-side
+// This avoids CORS issues when frontend tries to fetch directly from GCS
+app.get('/api/assets/:name', async (req, res) => {
   try {
-    const url = req.query.url;
-    if (!url || typeof url !== 'string') {
-      return res.status(400).json({ error: 'URL parameter required' });
-    }
-
-    // Validate URL is from allowed domains (security)
-    const allowedDomains = [
-      'storage.googleapis.com',
-      'sideprojects-asronline',
-    ];
-    const urlObj = new URL(url);
-    const isAllowed = allowedDomains.some(domain => urlObj.hostname.includes(domain));
+    const { name } = req.params;
     
-    if (!isAllowed) {
-      return res.status(403).json({ error: 'Domain not allowed' });
+    // Validate filename (security: prevent path traversal)
+    if (!name || !/^[a-zA-Z0-9_-]+\.json$/.test(name)) {
+      return res.status(400).json({ error: 'Invalid asset name. Must be a JSON filename.' });
     }
 
-    // Fetch the resource
-    const response = await fetch(url);
+    // Construct GCS URL
+    const gcsUrl = `https://storage.googleapis.com/sideprojects-asronline/bringanythingtolife/${name}`;
+    
+    console.log(`📦 Fetching asset from GCS: ${name}`);
+    
+    // Fetch the resource from GCS
+    const response = await fetch(gcsUrl, {
+      headers: {
+        'User-Agent': 'FantaBuild-Backend/1.0',
+      },
+    });
+    
     if (!response.ok) {
-      return res.status(response.status).json({ error: 'Failed to fetch resource' });
+      console.error(`❌ Failed to fetch ${name} from GCS: ${response.status} ${response.statusText}`);
+      return res.status(response.status).json({ 
+        error: 'Failed to fetch asset',
+        details: `GCS returned ${response.status}: ${response.statusText}`
+      });
     }
 
+    // Parse JSON
     const data = await response.json();
+    
+    // Return with proper headers
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
     res.json(data);
   } catch (error) {
-    console.error('Example proxy error:', error);
-    res.status(500).json({ error: 'Failed to proxy example' });
+    console.error('Asset proxy error:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch asset',
+      details: error.message 
+    });
   }
 });
 

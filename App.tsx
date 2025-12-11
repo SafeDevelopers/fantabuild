@@ -47,36 +47,27 @@ const App: React.FC = () => {
   const loadExamples = React.useCallback(async () => {
     try {
       const { API_BASE_URL } = await import('./config/api');
-      const exampleUrls = [
-        'https://storage.googleapis.com/sideprojects-asronline/bringanythingtolife/vibecode-blog.json',
-        'https://storage.googleapis.com/sideprojects-asronline/bringanythingtolife/cassette.json',
-        'https://storage.googleapis.com/sideprojects-asronline/bringanythingtolife/chess.json',
+      
+      // Asset names (no direct GCS URLs - use backend proxy)
+      const assetNames = [
+        'vibecode-blog.json',
+        'cassette.json',
+        'chess.json',
       ];
       
-      // Try to load examples via backend proxy first (avoids CORS issues)
+      // Fetch examples via backend proxy (avoids CORS issues)
       const examples = await Promise.all(
-        exampleUrls.map(async (url) => {
+        assetNames.map(async (assetName) => {
           try {
-            // Try backend proxy first
-            const proxyUrl = `${API_BASE_URL}/api/examples/proxy?url=${encodeURIComponent(url)}`;
+            // Use backend proxy endpoint
+            const proxyUrl = `${API_BASE_URL}/api/assets/${assetName}`;
             const res = await fetch(proxyUrl);
-            if (res.ok) {
-              const data = await res.json();
-              return {
-                ...data,
-                timestamp: new Date(data.timestamp || Date.now()),
-                id: data.id || crypto.randomUUID(),
-                purchased: false,
-              } as Creation;
+            
+            if (!res.ok) {
+              console.warn(`Failed to load ${assetName}: ${res.status} ${res.statusText}`);
+              return null;
             }
-          } catch (proxyError) {
-            console.warn('Backend proxy failed, trying direct fetch:', proxyError);
-          }
-          
-          // Fallback to direct fetch (may fail due to CORS)
-          try {
-            const res = await fetch(url);
-            if (!res.ok) return null;
+            
             const data = await res.json();
             return {
               ...data,
@@ -84,18 +75,21 @@ const App: React.FC = () => {
               id: data.id || crypto.randomUUID(),
               purchased: false,
             } as Creation;
-          } catch (directError) {
-            // CORS error or network error - silently skip this example
-            console.warn(`Could not load example from ${url}:`, directError);
+          } catch (error) {
+            // Network error or parsing error - silently skip this example
+            console.warn(`Could not load example ${assetName}:`, error);
             return null;
           }
         }),
       );
+      
       const validExamples = examples.filter((e): e is Creation => e !== null);
       setHistory(validExamples);
       
       if (validExamples.length === 0) {
-        console.info('No examples could be loaded. This is normal if CORS is blocking external resources.');
+        console.info('No examples could be loaded. Check backend logs for asset proxy errors.');
+      } else {
+        console.log(`✅ Loaded ${validExamples.length} example(s) via backend proxy`);
       }
     } catch (e) {
       console.error('Error loading examples:', e);
