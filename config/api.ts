@@ -2,13 +2,14 @@
  * API Configuration
  * Centralized configuration for API base URL
  * 
- * In production, VITE_API_BASE_URL MUST be set or the app will fail to start.
+ * In production, VITE_API_URL MUST be set or the app will fail to start.
  * This prevents accidentally using localhost in production.
  */
 
 // Get API base URL from environment
+// Support both VITE_API_URL and VITE_API_BASE_URL for backward compatibility
 const getApiBaseUrl = (): string => {
-  const apiUrl = import.meta.env.VITE_API_BASE_URL;
+  const apiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
   const isProduction = import.meta.env.PROD || import.meta.env.MODE === 'production';
   
   // In production, require API URL to be set
@@ -18,15 +19,15 @@ const getApiBaseUrl = (): string => {
 ╔══════════════════════════════════════════════════════════════╗
 ║  CRITICAL ERROR: API Base URL Not Configured                ║
 ╠══════════════════════════════════════════════════════════════╣
-║  VITE_API_BASE_URL environment variable is required in       ║
+║  VITE_API_URL environment variable is required in            ║
 ║  production but was not found.                               ║
 ║                                                              ║
-║  Please set VITE_API_BASE_URL in your CapRover environment  ║
+║  Please set VITE_API_URL in your CapRover environment        ║
 ║  variables and rebuild the app.                             ║
 ║                                                              ║
 ║  Steps to fix:                                               ║
 ║  1. Go to CapRover → Your Frontend App → App Configs         ║
-║  2. Add: VITE_API_BASE_URL=https://api-staging.addispos.com ║
+║  2. Add: VITE_API_URL=https://api-staging.addispos.com       ║
 ║  3. Redeploy the app                                         ║
 ╚══════════════════════════════════════════════════════════════╝
       `;
@@ -36,13 +37,13 @@ const getApiBaseUrl = (): string => {
         document.body.innerHTML = `
           <div style="padding: 40px; font-family: monospace; max-width: 800px; margin: 50px auto; background: #f5f5f5; border: 2px solid #f44336; border-radius: 8px;">
             <h1 style="color: #f44336;">⚠️ Configuration Error</h1>
-            <p><strong>VITE_API_BASE_URL</strong> is not configured.</p>
+            <p><strong>VITE_API_URL</strong> is not configured.</p>
             <p>Please set this environment variable in CapRover and redeploy.</p>
-            <pre style="background: #fff; padding: 15px; border-radius: 4px; overflow-x: auto;">VITE_API_BASE_URL=https://api-staging.addispos.com</pre>
+            <pre style="background: #fff; padding: 15px; border-radius: 4px; overflow-x: auto;">VITE_API_URL=https://api-staging.addispos.com</pre>
           </div>
         `;
       }
-      throw new Error('VITE_API_BASE_URL is required in production but was not set');
+      throw new Error('VITE_API_URL is required in production but was not set');
     }
     
     // Validate production URL doesn't contain localhost
@@ -51,24 +52,28 @@ const getApiBaseUrl = (): string => {
 ╔══════════════════════════════════════════════════════════════╗
 ║  CRITICAL ERROR: Invalid API URL in Production              ║
 ╠══════════════════════════════════════════════════════════════╣
-║  VITE_API_BASE_URL contains localhost which is not allowed  ║
+║  VITE_API_URL contains localhost which is not allowed       ║
 ║  in production.                                             ║
 ║                                                              ║
 ║  Current value: ${apiUrl}                                    ║
 ║                                                              ║
 ║  Please set a valid production API URL in CapRover.         ║
-║  Example: VITE_API_BASE_URL=https://api.yourdomain.com      ║
+║  Example: VITE_API_URL=https://api.yourdomain.com          ║
 ╚══════════════════════════════════════════════════════════════╝
       `;
       console.error(error);
-      throw new Error('VITE_API_BASE_URL cannot contain localhost in production');
+      throw new Error('VITE_API_URL cannot contain localhost in production');
     }
     
     return apiUrl;
   }
   
-  // In development, fallback to localhost
-  return apiUrl || 'http://localhost:3001';
+  // In development, require API URL to be set (no localhost fallback)
+  if (!apiUrl || apiUrl.trim() === '') {
+    throw new Error('VITE_API_URL must be set. No localhost fallback allowed.');
+  }
+  
+  return apiUrl;
 };
 
 // Export the API base URL

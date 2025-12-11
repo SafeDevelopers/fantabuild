@@ -29,7 +29,8 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '.env') });
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+// Parse PORT correctly (ensure it's a number, not a string like "PORT:3001")
+const PORT = parseInt(process.env.PORT || '3001', 10);
 
 // Initialize Redis
 let redisClient = null;
@@ -138,7 +139,16 @@ CORE DIRECTIVES:
 // Middleware
 // CORS configuration - allow requests from frontend
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-console.log('🔒 CORS configured for origin:', frontendUrl);
+const allowedOrigins = [
+  frontendUrl,
+  'https://fantabuild.addispos.com',
+  'https://addispos.com',
+  // Support both http and https versions
+  frontendUrl.replace('http://', 'https://'),
+  frontendUrl.replace('https://', 'http://'),
+].filter(Boolean);
+
+console.log('🔒 CORS configured for origins:', allowedOrigins);
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -147,8 +157,12 @@ app.use(cors({
       return callback(null, true);
     }
     
-    // Allow requests from configured frontend URL
-    if (origin === frontendUrl || origin.startsWith(frontendUrl.replace('http://', 'https://'))) {
+    // Check if origin is in allowed list
+    const isAllowed = allowedOrigins.some(allowed => {
+      return origin === allowed || origin.startsWith(allowed);
+    });
+    
+    if (isAllowed) {
       return callback(null, true);
     }
     
@@ -158,12 +172,26 @@ app.use(cors({
     }
     
     console.warn('⚠️  CORS blocked request from origin:', origin);
+    console.warn('   Allowed origins:', allowedOrigins);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
 }));
+
+// Handle OPTIONS preflight requests explicitly
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  res.sendStatus(204);
+});
 app.use(express.json());
 app.use(express.raw({ type: 'application/json' })); // For webhook signature verification
 
@@ -1586,10 +1614,14 @@ app.delete('/api/admin/creations/:id', requireAdmin, async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, async () => {
+// Parse PORT correctly (ensure it's a number)
+const PORT = parseInt(process.env.PORT || '3001', 10);
+
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Fanta Build server running on port ${PORT}`);
-  console.log(`📝 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔐 Admin API: http://localhost:${PORT}/api/admin/*`);
+  console.log(`📝 Health check: http://0.0.0.0:${PORT}/health`);
+  console.log(`🔐 Admin API: http://0.0.0.0:${PORT}/api/admin/*`);
+  console.log(`🌐 Listening on 0.0.0.0:${PORT} (accessible from all network interfaces)`);
   console.log('');
   
   try {
