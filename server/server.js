@@ -346,6 +346,109 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
 
 /**
  * -------------------------
+ * Billing & Checkout Endpoints
+ * -------------------------
+ */
+
+// One-off credit purchase ($3.99)
+app.post('/api/billing/checkout/one-off', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const amount = 399; // $3.99 in cents
+    
+    if (!stripe) {
+      return res.status(500).json({ error: 'Stripe not configured' });
+    }
+
+    // Create Stripe checkout session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: '1 Credit - FantaBuild',
+              description: '1 credit for downloading generated content',
+            },
+            unit_amount: amount,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: `${process.env.FRONTEND_URL || 'https://fantabuild.addispos.com'}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL || 'https://fantabuild.addispos.com'}/payment-cancel`,
+      client_reference_id: userId,
+      metadata: {
+        userId,
+        type: 'one-off',
+        credits: '1',
+      },
+    });
+
+    res.json({
+      sessionId: session.id,
+      url: session.url,
+    });
+  } catch (error) {
+    console.error('Error creating one-off checkout:', error);
+    res.status(500).json({ error: error.message || 'Failed to create checkout session' });
+  }
+});
+
+// Pro subscription checkout ($29.99/month)
+app.post('/api/billing/checkout/subscription', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const amount = 2999; // $29.99 in cents
+    
+    if (!stripe) {
+      return res.status(500).json({ error: 'Stripe not configured' });
+    }
+
+    // Create Stripe checkout session for subscription
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'Pro Subscription - FantaBuild',
+              description: 'Pro subscription with 40 credits per month',
+            },
+            recurring: {
+              interval: 'month',
+            },
+            unit_amount: amount,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'subscription',
+      success_url: `${process.env.FRONTEND_URL || 'https://fantabuild.addispos.com'}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL || 'https://fantabuild.addispos.com'}/payment-cancel`,
+      client_reference_id: userId,
+      metadata: {
+        userId,
+        type: 'subscription',
+        credits: '40',
+      },
+    });
+
+    res.json({
+      sessionId: session.id,
+      url: session.url,
+    });
+  } catch (error) {
+    console.error('Error creating subscription checkout:', error);
+    res.status(500).json({ error: error.message || 'Failed to create subscription session' });
+  }
+});
+
+/**
+ * -------------------------
  * (Keep your remaining routes as-is)
  * NOTE: Stripe webhook must be RAW for signature verification
  * -------------------------
