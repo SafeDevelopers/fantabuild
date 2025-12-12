@@ -161,9 +161,51 @@ async function createPaymentSessionsTable() {
 }
 
 /**
+ * Ensure users table has plan and credits columns (migration for existing tables)
+ */
+async function ensureUsersTableColumns() {
+  try {
+    // Check if plan column exists
+    const planCheck = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'plan'
+    `);
+    
+    if (planCheck.rows.length === 0) {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN plan TEXT DEFAULT 'FREE' CHECK (plan IN ('FREE', 'PAY_PER_USE', 'PRO'))
+      `);
+      console.log('✅ Added plan column to users table');
+    }
+    
+    // Check if credits column exists
+    const creditsCheck = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'credits'
+    `);
+    
+    if (creditsCheck.rows.length === 0) {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN credits INTEGER NOT NULL DEFAULT 0
+      `);
+      console.log('✅ Added credits column to users table');
+    }
+  } catch (error) {
+    console.warn(`⚠️  Could not ensure users table columns: ${error.message}`);
+  }
+}
+
+/**
  * Create indexes if they don't exist
  */
 async function createIndexes() {
+  // First ensure columns exist before creating indexes
+  await ensureUsersTableColumns();
+  
   const indexes = [
     'CREATE INDEX IF NOT EXISTS idx_creations_user_id ON creations(user_id)',
     'CREATE INDEX IF NOT EXISTS idx_creations_created_at ON creations(created_at DESC)',
@@ -173,9 +215,34 @@ async function createIndexes() {
     'CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id)',
     'CREATE INDEX IF NOT EXISTS idx_payments_provider_session_id ON payments(provider_session_id)',
     'CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status)',
-    'CREATE INDEX IF NOT EXISTS idx_users_plan ON users(plan)',
-    'CREATE INDEX IF NOT EXISTS idx_users_credits ON users(credits)',
   ];
+  
+  // Only create indexes on plan and credits if columns exist
+  try {
+    const planCheck = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'plan'
+    `);
+    if (planCheck.rows.length > 0) {
+      indexes.push('CREATE INDEX IF NOT EXISTS idx_users_plan ON users(plan)');
+    }
+  } catch (error) {
+    console.warn(`⚠️  Could not check plan column: ${error.message}`);
+  }
+  
+  try {
+    const creditsCheck = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'credits'
+    `);
+    if (creditsCheck.rows.length > 0) {
+      indexes.push('CREATE INDEX IF NOT EXISTS idx_users_credits ON users(credits)');
+    }
+  } catch (error) {
+    console.warn(`⚠️  Could not check credits column: ${error.message}`);
+  }
   
   for (const indexQuery of indexes) {
     try {
