@@ -53,22 +53,25 @@ function isAllowedOrigin(origin) {
 
 console.log('🔒 CORS allowed origins:', uniqueOrigins);
 
-app.use(cors({
+// CORS configuration - must match frontend credentials mode
+const corsOptions = {
   origin: (origin, callback) => {
     if (isAllowedOrigin(origin)) return callback(null, true);
     console.warn('⚠️  CORS blocked origin:', origin);
     return callback(new Error('Not allowed by CORS'));
   },
-  // If you rely on Bearer tokens (Authorization header), keep credentials false.
-  // If you rely on cookies/sessions across origins, set credentials true AND set cookie sameSite/secure below.
-  credentials: false,
+  // Frontend uses credentials: 'include', so we must set this to true
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
   maxAge: 86400,
-}));
+};
 
-// Ensure preflight always responds
-app.options('*', cors());
+app.use(cors(corsOptions));
+
+// Ensure preflight always responds with the same CORS config
+app.options('*', cors(corsOptions));
 
 /**
  * -------------------------
