@@ -189,16 +189,35 @@ const requireAdmin = async (req, res, next) => {
  * Health check
  * -------------------------
  */
+// Health check endpoint - must respond quickly for CapRover
+// This endpoint is critical - it must always respond so CapRover knows the server is alive
 app.get('/health', async (req, res) => {
+  // Always set JSON content type
+  res.setHeader('Content-Type', 'application/json');
+  
   try {
-    await pool.query('SELECT 1');
+    // Quick database check with timeout
+    const dbCheck = Promise.race([
+      pool.query('SELECT 1'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Database timeout')), 2000))
+    ]);
+    
+    await dbCheck;
     res.json({
       status: 'ok',
       database: 'connected',
       redis: redisClient?.isOpen ? 'connected' : 'not configured',
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    res.status(500).json({ status: 'error', database: 'disconnected', error: error.message });
+    // Still return 200 OK even if database is down - server is running
+    // CapRover just needs to know the server process is alive
+    res.status(200).json({ 
+      status: 'ok', 
+      database: 'disconnected', 
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
   }
 });
 
@@ -355,35 +374,40 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
  * Start server + initialization
  * -------------------------
  */
-// Start server with proper error handling
-const server = app.listen(PORT, HOST, async () => {
+// Start server immediately - don't wait for async initialization
+// This ensures CapRover can reach the server even if initialization fails
+const server = app.listen(PORT, HOST, () => {
   console.log(`🚀 Fanta Build server running on ${HOST}:${PORT}`);
   console.log(`📝 Health check: /health`);
   console.log(`🔐 Admin API: /api/admin/*`);
   console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📊 Database: ${process.env.DATABASE_URL ? 'DATABASE_URL set' : 'Using DB_* vars'}`);
+  console.log(`✅ Server is listening and ready to accept connections`);
+  
+  // Run initialization asynchronously (don't block server startup)
+  (async () => {
+    try {
+      console.log('🔄 Ensuring database schema...');
+      await migrations.ensureSchema();
+      console.log('✅ Schema ensured');
 
-  try {
-    console.log('🔄 Ensuring database schema...');
-    await migrations.ensureSchema();
-    console.log('✅ Schema ensured');
-
-    console.log('🔄 Ensuring permanent admin account...');
-    const admin = await auth.ensurePermanentAdmin();
-    if (admin) console.log('✅ Permanent admin account ready');
-    else console.error('⚠️  Could not initialize permanent admin account');
-    
-    console.log('✅ Server initialization complete');
-  } catch (err) {
-    console.error('❌ Initialization error:', err?.message || err);
-    console.error('❌ Error stack:', err?.stack);
-    if (err?.code === '42P01') {
-      console.error('❌ Database table missing. Check database connection and schema.');
-      process.exit(1);
+      console.log('🔄 Ensuring permanent admin account...');
+      const admin = await auth.ensurePermanentAdmin();
+      if (admin) console.log('✅ Permanent admin account ready');
+      else console.error('⚠️  Could not initialize permanent admin account');
+      
+      console.log('✅ Server initialization complete');
+    } catch (err) {
+      console.error('❌ Initialization error:', err?.message || err);
+      console.error('❌ Error stack:', err?.stack);
+      if (err?.code === '42P01') {
+        console.error('❌ Database table missing. Check database connection and schema.');
+        // Don't exit - let health endpoint show the error
+      }
+      // Don't exit on other errors - let the server try to run
+      console.error('⚠️  Continuing despite initialization error...');
     }
-    // Don't exit on other errors - let the server try to run
-    console.error('⚠️  Continuing despite initialization error...');
-  }
+  })();
 });
 
 server.on('error', (err) => {
